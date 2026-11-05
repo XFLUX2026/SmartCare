@@ -117,6 +117,8 @@ fun SmartCareApp() {
                     }
                     1 -> Dashboard(snap) { snap = Metrics.read(ctx) }
                     3 -> BatteryPanel(snap.battery) { snap = Metrics.read(ctx) }
+                    4 -> RamPanel(snap.ram) { snap = Metrics.read(ctx) }
+                    5 -> StoragePanel(snap.storage) { snap = Metrics.read(ctx) }
                     else -> Placeholder(tabs[tab].first)
                 }
             }
@@ -490,6 +492,69 @@ fun BatteryPanel(b: BatteryInfo, onRefresh: () -> Unit) {
         Button(onClick = onRefresh, modifier = Modifier.fillMaxWidth()) {
             Text("Atualizar agora")
         }
+    }
+}
+
+
+@Composable
+fun RamPanel(ram: RamInfo, onRefresh: () -> Unit) {
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        Text("MONITORAMENTO DA RAM", fontSize = 21.sp, fontWeight = FontWeight.Bold, color = BlueMid)
+        CardBox {
+            Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Ring(ram.percent, "${ram.percent.toInt()}%", "em uso", BlueLight, 145.dp)
+                Text(if (ram.lowMemory) "O Android sinalizou pouca memória disponível" else "Sem alerta de pouca memória do Android", color = if (ram.lowMemory) Amber else Green, fontSize = 12.sp)
+            }
+        }
+        CardBox {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Detalhes da memória", fontWeight = FontWeight.SemiBold)
+                Line("Total", fmt(ram.total))
+                Line("Em uso", fmt(ram.used))
+                Line("Disponível", fmt(ram.available))
+                Line("Alerta do sistema", if (ram.lowMemory) "Sim" else "Não")
+            }
+        }
+        Text("O Android administra a memória automaticamente. RAM ocupada não significa defeito, e encerrar processos à força pode piorar o desempenho.", color = Color.Gray, fontSize = 12.sp)
+        Button(onClick = onRefresh, modifier = Modifier.fillMaxWidth()) { Text("Atualizar agora") }
+    }
+}
+
+@Composable
+fun StoragePanel(storage: StorageInfo, onRefresh: () -> Unit) {
+    val color = if (storage.percent >= 90f) Red else if (storage.percent >= 70f) Amber else BlueMid
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        Text("ARMAZENAMENTO", fontSize = 21.sp, fontWeight = FontWeight.Bold, color = BlueMid)
+        CardBox {
+            Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Ring(storage.percent, "${storage.percent.toInt()}%", "ocupado", color, 145.dp)
+                Text(
+                    when {
+                        storage.percent >= 90f -> "Espaço quase cheio"
+                        storage.percent >= 70f -> "Atenção ao espaço disponível"
+                        else -> "Espaço disponível em nível confortável"
+                    },
+                    color = color,
+                    fontSize = 12.sp
+                )
+            }
+        }
+        CardBox {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Detalhes do armazenamento", fontWeight = FontWeight.SemiBold)
+                Line("Total", fmt(storage.total))
+                Line("Ocupado", fmt(storage.used))
+                Line("Livre", fmt(storage.free))
+            }
+        }
+        Text("Esta tela apenas consulta o espaço disponível. Nenhum arquivo é apagado pelo Smart Care.", color = Color.Gray, fontSize = 12.sp)
+        Button(onClick = onRefresh, modifier = Modifier.fillMaxWidth()) { Text("Atualizar agora") }
     }
 }
 
