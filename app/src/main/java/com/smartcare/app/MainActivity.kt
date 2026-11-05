@@ -28,6 +28,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -47,6 +48,7 @@ import androidx.compose.ui.unit.sp
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlinx.coroutines.delay
 
 private val BlueLight = Color(0xFF5BB8F5)
 private val BlueMid = Color(0xFF1E6FD9)
@@ -74,6 +76,14 @@ fun SmartCareApp() {
         val ctx = LocalContext.current
         var tab by remember { mutableStateOf(0) }
         var snap by remember { mutableStateOf(Metrics.read(ctx)) }
+        LaunchedEffect(tab) {
+            if (tab == 2) {
+                while (true) {
+                    delay(4000)
+                    snap = Metrics.read(ctx)
+                }
+            }
+        }
         val tabs = listOf(
             "Início" to "🏠",
             "Limpeza" to "🧹",
@@ -97,10 +107,10 @@ fun SmartCareApp() {
             }
         ) { padding ->
             Box(Modifier.padding(padding).fillMaxSize()) {
-                if (tab == 0) {
-                    Dashboard(snap) { snap = Metrics.read(ctx) }
-                } else {
-                    Placeholder(tabs[tab].first)
+                when (tab) {
+                    0 -> Dashboard(snap) { snap = Metrics.read(ctx) }
+                    2 -> BatteryPanel(snap.battery) { snap = Metrics.read(ctx) }
+                    else -> Placeholder(tabs[tab].first)
                 }
             }
         }
@@ -198,6 +208,74 @@ fun Dashboard(snap: Snapshot, onRefresh: () -> Unit) {
             }
         }
 
+        Button(onClick = onRefresh, modifier = Modifier.fillMaxWidth()) {
+            Text("Atualizar agora")
+        }
+    }
+}
+
+
+@Composable
+fun BatteryPanel(b: BatteryInfo, onRefresh: () -> Unit) {
+    val tempKnown = !b.tempC.isNaN()
+    val tempColor = when {
+        !tempKnown -> Color.Gray
+        b.tempC >= 40f -> Red
+        b.tempC >= 35f -> Amber
+        else -> Green
+    }
+    val tempStatus = when {
+        !tempKnown -> "Temperatura indisponível neste aparelho"
+        b.tempC >= 40f -> "Temperatura alta. Evite jogos e uso intenso enquanto esfria."
+        b.tempC >= 35f -> "Atenção: a bateria está aquecida."
+        else -> "Temperatura normal."
+    }
+    val currentText = b.currentMicroA?.let {
+        val ma = kotlin.math.abs(it) / 1000.0
+        if (ma >= 1000.0) "%.2f A".format(ma / 1000.0) else "%.0f mA".format(ma)
+    } ?: "Indisponível neste aparelho"
+    val etaText = b.minutesToFull?.let {
+        val hours = it / 60
+        val minutes = it % 60
+        if (hours > 0) "$hours h $minutes min" else "$minutes min"
+    } ?: if (b.charging && b.percent in 1..99) "Estimativa indisponível neste aparelho" else "Disponível durante o carregamento"
+
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        Column {
+            Text("MONITORAMENTO DA BATERIA", fontSize = 21.sp, fontWeight = FontWeight.Bold, color = BlueMid)
+            Text("Acompanhamento automático enquanto esta tela estiver aberta.", color = Color.Gray, fontSize = 13.sp)
+        }
+        CardBox {
+            Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(if (b.percent >= 0) "${b.percent}%" else "—", fontSize = 42.sp, fontWeight = FontWeight.Bold, color = BlueMid)
+                Text(b.status, fontWeight = FontWeight.SemiBold)
+                Text(if (b.charging) "Carregador conectado" else "Carregador desconectado", color = Color.Gray, fontSize = 12.sp)
+            }
+        }
+        CardBox {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Temperatura da bateria", fontWeight = FontWeight.SemiBold)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Box(Modifier.size(14.dp).then(Modifier), ) {}
+                    Text(if (tempKnown) "%.1f °C".format(b.tempC) else "Indisponível", fontSize = 27.sp, fontWeight = FontWeight.Bold, color = tempColor)
+                }
+                Text(tempStatus, color = tempColor, fontSize = 13.sp)
+                Text("Verde: normal  •  Amarelo: aquecida  •  Vermelho: temperatura alta", color = Color.Gray, fontSize = 11.sp)
+            }
+        }
+        CardBox {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Informações de carregamento", fontWeight = FontWeight.SemiBold)
+                Line("Corrente elétrica", currentText)
+                Line("Tempo até carga completa", etaText)
+                Line("Voltagem", if (b.voltageV > 0f) "%.2f V".format(b.voltageV) else "Indisponível neste aparelho")
+                Line("Tecnologia", b.technology)
+            }
+        }
+        Text("Os valores dependem dos sensores e dados disponibilizados pelo fabricante. A corrente pode variar durante a carga e o tempo restante é uma estimativa, não uma garantia.", color = Color.Gray, fontSize = 11.sp)
         Button(onClick = onRefresh, modifier = Modifier.fillMaxWidth()) {
             Text("Atualizar agora")
         }
