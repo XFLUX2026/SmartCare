@@ -1,10 +1,12 @@
 package com.smartcare.app
 
+import android.content.Context
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,6 +33,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -77,7 +80,7 @@ fun SmartCareApp() {
         var tab by remember { mutableStateOf(0) }
         var snap by remember { mutableStateOf(Metrics.read(ctx)) }
         LaunchedEffect(tab) {
-            if (tab == 2) {
+            if (tab == 3) {
                 while (true) {
                     delay(4000)
                     snap = Metrics.read(ctx)
@@ -85,7 +88,8 @@ fun SmartCareApp() {
             }
         }
         val tabs = listOf(
-            "Início" to "🏠",
+            "Home Care" to "🏠",
+            "Diagnóstico" to "💚",
             "Limpeza" to "🧹",
             "Bateria" to "🔋",
             "Monitor" to "📊",
@@ -100,7 +104,7 @@ fun SmartCareApp() {
                             selected = tab == index,
                             onClick = { tab = index },
                             icon = { Text(item.second) },
-                            label = { Text(item.first, fontSize = 11.sp) }
+                            label = { Text(item.first, fontSize = 10.sp) }
                         )
                     }
                 }
@@ -108,9 +112,216 @@ fun SmartCareApp() {
         ) { padding ->
             Box(Modifier.padding(padding).fillMaxSize()) {
                 when (tab) {
-                    0 -> Dashboard(snap) { snap = Metrics.read(ctx) }
-                    2 -> BatteryPanel(snap.battery) { snap = Metrics.read(ctx) }
+                    0 -> HomeCarePanel(snap, onRefresh = { snap = Metrics.read(ctx) }) { destination ->
+                        tab = destination
+                    }
+                    1 -> Dashboard(snap) { snap = Metrics.read(ctx) }
+                    3 -> BatteryPanel(snap.battery) { snap = Metrics.read(ctx) }
                     else -> Placeholder(tabs[tab].first)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun HomeCarePanel(
+    snap: Snapshot,
+    onRefresh: () -> Unit,
+    onOpen: (Int) -> Unit
+) {
+    val context = LocalContext.current
+    val prefs = remember { context.getSharedPreferences("home_care_layout", Context.MODE_PRIVATE) }
+    val ids = listOf("health", "battery", "ram", "storage")
+    val order = remember {
+        mutableStateListOf<String>().apply {
+            val saved = prefs.getString("order", null)
+            val restored = saved?.split(",")?.filter { it in ids } ?: emptyList()
+            addAll(restored + ids.filterNot { it in restored })
+        }
+    }
+    val hidden = remember {
+        mutableStateListOf<String>().apply {
+            addAll(prefs.getStringSet("hidden", emptySet<String>()) ?: emptySet())
+        }
+    }
+    var editing by remember { mutableStateOf(false) }
+
+    fun saveOrder() {
+        prefs.edit().putString("order", order.joinToString(",")).apply()
+    }
+    fun saveHidden() {
+        prefs.edit().putStringSet("hidden", hidden.toSet()).apply()
+    }
+
+    val scoreColor = if (snap.health.score >= 80) Green else if (snap.health.score >= 60) Amber else Red
+    val batteryText = if (snap.battery.percent >= 0) "${snap.battery.percent}%" else "Indisponível"
+    val batteryDetail = buildString {
+        append(snap.battery.status)
+        if (!snap.battery.tempC.isNaN()) append(" • %.1f °C".format(snap.battery.tempC))
+    }
+    val ramText = "${snap.ram.percent.toInt()}% em uso"
+    val storageText = "${snap.storage.percent.toInt()}% ocupado"
+
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text("HOME CARE", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = BlueMid)
+                Text("Central de informações do aparelho", color = Color.Gray, fontSize = 12.sp)
+            }
+            Button(onClick = { editing = !editing }) {
+                Text(if (editing) "Concluir" else "Organizar")
+            }
+        }
+        if (editing) {
+            Text(
+                "Use as setas para mudar a posição e Ocultar para retirar um indicador do painel. A organização fica salva neste aparelho.",
+                color = Color.Gray,
+                fontSize = 12.sp
+            )
+        } else {
+            Text("Toque em um indicador para abrir essa área no Smart Care.", color = Color.Gray, fontSize = 12.sp)
+        }
+
+        order.filterNot { it in hidden }.forEach { id ->
+            val title: String
+            val value: String
+            val detail: String
+            val destination: Int
+            val accent: Color
+            when (id) {
+                "health" -> {
+                    title = "Saúde geral"
+                    value = "${snap.health.score}/100"
+                    detail = if (snap.health.reasons.isEmpty()) "Sem alertas no momento" else snap.health.reasons.first()
+                    destination = 1
+                    accent = scoreColor
+                }
+                "battery" -> {
+                    title = "Bateria"
+                    value = batteryText
+                    detail = batteryDetail
+                    destination = 3
+                    accent = BlueMid
+                }
+                "ram" -> {
+                    title = "Memória RAM"
+                    value = ramText
+                    detail = "${fmt(snap.ram.available)} disponíveis de ${fmt(snap.ram.total)}"
+                    destination = 4
+                    accent = BlueLight
+                }
+                else -> {
+                    title = "Armazenamento"
+                    value = storageText
+                    detail = "${fmt(snap.storage.free)} livres"
+                    destination = 5
+                    accent = if (snap.storage.percent >= 90f) Red else if (snap.storage.percent >= 70f) Amber else BlueMid
+                }
+            }
+            HomeCareItemCard(
+                title = title,
+                value = value,
+                detail = detail,
+                accent = accent,
+                editing = editing,
+                onOpen = { if (!editing) onOpen(destination) },
+                onMoveUp = {
+                    val index = order.indexOf(id)
+                    if (index > 0) {
+                        val item = order.removeAt(index)
+                        order.add(index - 1, item)
+                        saveOrder()
+                    }
+                },
+                onMoveDown = {
+                    val index = order.indexOf(id)
+                    if (index >= 0 && index < order.lastIndex) {
+                        val item = order.removeAt(index)
+                        order.add(index + 1, item)
+                        saveOrder()
+                    }
+                },
+                onHide = {
+                    if (id !in hidden) hidden.add(id)
+                    saveHidden()
+                }
+            )
+        }
+
+        if (editing && hidden.isNotEmpty()) {
+            CardBox {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Indicadores ocultos", fontWeight = FontWeight.SemiBold)
+                    hidden.toList().forEach { id ->
+                        val label = when (id) {
+                            "health" -> "Saúde geral"
+                            "battery" -> "Bateria"
+                            "ram" -> "Memória RAM"
+                            else -> "Armazenamento"
+                        }
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                            Text(label, fontSize = 13.sp)
+                            Button(onClick = {
+                                hidden.remove(id)
+                                saveHidden()
+                            }) { Text("Mostrar") }
+                        }
+                    }
+                }
+            }
+        }
+
+        Button(onClick = onRefresh, modifier = Modifier.fillMaxWidth()) {
+            Text("Atualizar indicadores")
+        }
+        Text(
+            "O Home Care faz leituras pontuais. Não mantém um serviço permanente em segundo plano.",
+            color = Color.Gray,
+            fontSize = 11.sp
+        )
+    }
+}
+
+@Composable
+fun HomeCareItemCard(
+    title: String,
+    value: String,
+    detail: String,
+    accent: Color,
+    editing: Boolean,
+    onOpen: () -> Unit,
+    onMoveUp: () -> Unit,
+    onMoveDown: () -> Unit,
+    onHide: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth().then(
+            if (editing) Modifier else Modifier.clickable(onClick = onOpen)
+        ),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text(title, fontWeight = FontWeight.SemiBold, color = BlueMid)
+                if (!editing) Text("Abrir  ›", color = BlueMid, fontSize = 12.sp)
+            }
+            Text(value, fontSize = 25.sp, fontWeight = FontWeight.Bold, color = accent)
+            Text(detail, color = Color.Gray, fontSize = 12.sp)
+            if (editing) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Button(onClick = onMoveUp) { Text("↑") }
+                    Button(onClick = onMoveDown) { Text("↓") }
+                    Button(onClick = onHide) { Text("Ocultar") }
                 }
             }
         }
