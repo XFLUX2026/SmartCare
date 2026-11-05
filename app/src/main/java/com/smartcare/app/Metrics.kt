@@ -24,7 +24,10 @@ data class BatteryInfo(
     val voltageV: Float,
     val technology: String,
     val charging: Boolean,
-    val status: String
+    val status: String,
+    val currentMicroA: Int?,
+    val chargeCounterMicroAh: Int?,
+    val minutesToFull: Long?
 )
 
 data class Health(val score: Int, val reasons: List<String>)
@@ -70,6 +73,17 @@ object Metrics {
         val tech = i?.getStringExtra(BatteryManager.EXTRA_TECHNOLOGY) ?: "Indisponível"
         val st = i?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1
         val charging = st == BatteryManager.BATTERY_STATUS_CHARGING || st == BatteryManager.BATTERY_STATUS_FULL
+        val bm = ctx.getSystemService(Context.BATTERY_SERVICE) as BatteryManager
+        val rawCurrent = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW)
+        val current = rawCurrent.takeIf { it != Int.MIN_VALUE && it != 0 }
+        val rawChargeCounter = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CHARGE_COUNTER)
+        val chargeCounter = rawChargeCounter.takeIf { it > 0 }
+        val minutesToFull = if (charging && percent in 1..99 && chargeCounter != null && current != null) {
+            val estimatedFullCapacity = chargeCounter.toDouble() * 100.0 / percent
+            val remaining = (estimatedFullCapacity - chargeCounter).coerceAtLeast(0.0)
+            val minutes = (remaining / kotlin.math.abs(current.toDouble()) * 60.0).toLong()
+            minutes.takeIf { it in 1..1440 }
+        } else null
         val statusText = when (st) {
             BatteryManager.BATTERY_STATUS_CHARGING -> "Carregando"
             BatteryManager.BATTERY_STATUS_DISCHARGING -> "Descarregando"
@@ -77,7 +91,7 @@ object Metrics {
             BatteryManager.BATTERY_STATUS_NOT_CHARGING -> "Não está carregando"
             else -> "Indisponível"
         }
-        return BatteryInfo(percent, tempC, rawVolt / 1000f, tech, charging, statusText)
+        return BatteryInfo(percent, tempC, rawVolt / 1000f, tech, charging, statusText, current, chargeCounter, minutesToFull)
     }
 
     // Criterios transparentes. Nao e uma certificacao oficial do Android.
