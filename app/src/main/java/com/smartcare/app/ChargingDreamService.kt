@@ -92,10 +92,14 @@ class ChargingDreamService : DreamService() {
         root.addView(ringFrame, LinearLayout.LayoutParams(dp(280), dp(280)))
         root.addView(status, centeredParams().apply { topMargin = dp(20) })
         root.addView(temperature, centeredParams().apply { topMargin = dp(10) })
-        val welcome = label(12f, 0xFF60788D.toInt(), false).apply {
-            text = "SMART CARE  •  MONITORAMENTO DE BATERIA"
+        val welcome = label(15f, 0xFFEAF1F7.toInt(), true).apply {
+            text = "Olá! Seja bem-vindo."
         }
-        root.addView(welcome, centeredParams().apply { topMargin = dp(36) })
+        val signature = label(10f, 0xFF60788D.toInt(), false).apply {
+            text = "SMART CARE  •  XFLUX"
+        }
+        root.addView(welcome, centeredParams().apply { topMargin = dp(28) })
+        root.addView(signature, centeredParams().apply { topMargin = dp(8) })
         setContentView(root)
     }
 
