@@ -10,6 +10,15 @@ import android.provider.MediaStore
 import android.provider.Settings
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import androidx.work.WorkManager
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.ExistingWorkPolicy
+import androidx.work.CoroutineWorker
+import androidx.work.WorkerParameters
+import androidx.work.WorkInfo
+import android.content.Context
+import org.json.JSONArray
+import org.json.JSONObject
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -42,6 +51,7 @@ import androidx.core.content.ContextCompat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.delay
 import java.util.Locale
 import java.security.MessageDigest
 
@@ -60,19 +70,44 @@ fun CleanerPanel() {
     val scope = rememberCoroutineScope()
     val candidates = remember { mutableStateListOf<CleanCandidate>() }
     var scanning by remember { mutableStateOf(false) }
-    var message by remember { mutableStateOf("Faça uma análise para localizar arquivos grandes, possíveis duplicados e fotos possivelmente desfocadas.") }
+    var message by remember { mutableStateOf("A análise roda em segundo plano e os resultados ficam salvos mesmo se você fechar o aplicativo.") }
     var hasPermission by remember { mutableStateOf(false) }
+    val prefs = remember { context.getSharedPreferences("smartcare_cleaner", Context.MODE_PRIVATE) }
+    fun restoreSavedResults() {
+        val raw = prefs.getString("results", null) ?: return
+        try {
+            val array = JSONArray(raw)
+            candidates.clear()
+            for (i in 0 until array.length()) {
+                val item = array.getJSONObject(i)
+                candidates.add(CleanCandidate(Uri.parse(item.getString("uri")), item.getString("name"), item.getLong("size"), item.getString("kind"), item.getString("note")))
+            }
+        } catch (_: Exception) { }
+    }
+    LaunchedEffect(Unit) {
+        restoreSavedResults()
+        while (true) {
+            val infos = withContext(Dispatchers.IO) { WorkManager.getInstance(context).getWorkInfosForUniqueWork("smartcare-clean-scan").get() }
+            val info = infos.firstOrNull()
+            if (info != null) {
+                scanning = info.state == WorkInfo.State.RUNNING || info.state == WorkInfo.State.ENQUEUED
+                if (info.state == WorkInfo.State.SUCCEEDED) {
+                    restoreSavedResults()
+                    message = prefs.getString("message", "Análise concluída.") ?: "Análise concluída."
+                } else if (info.state == WorkInfo.State.FAILED) {
+                    message = "A análise não foi concluída. Tente novamente; resultados anteriores foram preservados."
+                }
+            }
+            delay(1200)
+        }
+    }
 
     fun scanFiles() {
         scanning = true
-        message = "Analisando fotos e vídeos…"
-        scope.launch {
-            val found = withContext(Dispatchers.IO) { findCandidates(context) }
-            candidates.clear()
-            candidates.addAll(found)
-            scanning = false
-            message = if (found.isEmpty()) "Análise concluída. Nenhum candidato encontrado nas mídias permitidas." else "Análise concluída: ${found.size} itens para revisar. Nada foi apagado."
-        }
+        message = "Análise iniciada. Você pode sair desta tela; o trabalho continuará em segundo plano."
+        prefs.edit().putString("message", message).apply()
+        val request = OneTimeWorkRequestBuilder<SmartCareScanWorker>().build()
+        WorkManager.getInstance(context).enqueueUniqueWork("smartcare-clean-scan", ExistingWorkPolicy.REPLACE, request)
     }
 
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -99,11 +134,13 @@ fun CleanerPanel() {
             Build.VERSION.SDK_INT >= 34 -> arrayOf(
                 Manifest.permission.READ_MEDIA_IMAGES,
                 Manifest.permission.READ_MEDIA_VIDEO,
+                Manifest.permission.READ_MEDIA_AUDIO,
                 Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED
             )
             Build.VERSION.SDK_INT >= 33 -> arrayOf(
                 Manifest.permission.READ_MEDIA_IMAGES,
-                Manifest.permission.READ_MEDIA_VIDEO
+                Manifest.permission.READ_MEDIA_VIDEO,
+                Manifest.permission.READ_MEDIA_AUDIO
             )
             Build.VERSION.SDK_INT >= 29 -> arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
             else -> arrayOf(
@@ -125,10 +162,10 @@ fun CleanerPanel() {
         Text("Você escolhe o que será excluído. O Smart Care nunca apaga arquivos sozinho.", style = MaterialTheme.typography.bodyMedium)
         Card(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Análise de arquivos", fontWeight = FontWeight.SemiBold)
+                Text("Análise ampla de arquivos", fontWeight = FontWeight.SemiBold)
                 Text(message, style = MaterialTheme.typography.bodySmall)
                 Button(onClick = { requestScan() }, enabled = !scanning, modifier = Modifier.fillMaxWidth()) {
-                    Text(if (scanning) "Analisando…" else "Analisar fotos e vídeos")
+                    Text(if (scanning) "Analisando em segundo plano…" else "Analisar arquivos do aparelho")
                 }
             }
         }
@@ -219,15 +256,13 @@ private fun findCandidates(context: android.content.Context): List<CleanCandidat
     val rows = mutableListOf<CleanCandidate>()
     val firstDuplicateUris = mutableMapOf<String, Uri>()
     var blurChecks = 0
-    val sources = listOf(
-        Triple(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, "Imagem", MediaStore.Images.Media._ID),
-        Triple(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, "Vídeo", MediaStore.Video.Media._ID)
-    )
-    for ((collection, kind, idColumn) in sources) {
-        val projection = arrayOf(idColumn, MediaStore.MediaColumns.DISPLAY_NAME, MediaStore.MediaColumns.SIZE)
-        try {
-            resolver.query(collection, projection, null, null, "${MediaStore.MediaColumns.SIZE} DESC")?.use { cursor ->
-                val idIndex = cursor.getColumnIndexOrThrow(idColumn)
+    val collection = MediaStore.Files.getContentUri("external")
+    val projection = arrayOf(MediaStore.Files.FileColumns._ID, MediaStore.MediaColumns.DISPLAY_NAME, MediaStore.MediaColumns.SIZE, MediaStore.Files.FileColumns.MEDIA_TYPE, MediaStore.MediaColumns.MIME_TYPE)
+    try {
+        resolver.query(collection, projection, null, null, "${MediaStore.MediaColumns.SIZE} DESC")?.use { cursor ->
+                val idIndex = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns._ID)
+                val typeIndex = cursor.getColumnIndex(MediaStore.Files.FileColumns.MEDIA_TYPE)
+                val mimeIndex = cursor.getColumnIndex(MediaStore.MediaColumns.MIME_TYPE)
                 val nameIndex = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DISPLAY_NAME)
                 val sizeIndex = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.SIZE)
                 while (cursor.moveToNext() && rows.size < 1200) {
@@ -235,6 +270,14 @@ private fun findCandidates(context: android.content.Context): List<CleanCandidat
                     val name = cursor.getString(nameIndex) ?: "Arquivo sem nome"
                     val size = cursor.getLong(sizeIndex)
                     if (size <= 0L) continue
+                    val mediaType = if (typeIndex >= 0) cursor.getInt(typeIndex) else 0
+                    val mime = if (mimeIndex >= 0) cursor.getString(mimeIndex).orEmpty() else ""
+                    val kind = when {
+                        mediaType == MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE || mime.startsWith("image/") -> "Imagem"
+                        mediaType == MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO || mime.startsWith("video/") -> "Vídeo"
+                        mediaType == MediaStore.Files.FileColumns.MEDIA_TYPE_AUDIO || mime.startsWith("audio/") -> "Áudio"
+                        else -> "Documento / Download"
+                    }
                     val uri = ContentUris.withAppendedId(collection, id)
                     val key = "${name.lowercase(Locale.ROOT)}|$size"
                     val firstUri = firstDuplicateUris.putIfAbsent(key, uri)
@@ -266,11 +309,10 @@ private fun findCandidates(context: android.content.Context): List<CleanCandidat
                     if (notes.isNotEmpty()) rows.add(CleanCandidate(uri, name, size, kind, notes.joinToString(" • ")))
                 }
             }
-        } catch (_: SecurityException) {
+    } catch (_: SecurityException) {
             // Acesso parcial ou negado: os arquivos não autorizados são ignorados.
-        } catch (_: Exception) {
-            // Um arquivo indisponível não interrompe a análise dos demais.
-        }
+    } catch (_: Exception) {
+        // Um arquivo indisponível não interrompe a análise dos demais.
     }
     return rows.sortedByDescending { it.size }
 }
@@ -334,5 +376,34 @@ private fun formatBytes(bytes: Long): String {
         bytes >= 1024L * 1024L * 1024L -> "%.1f GB".format(bytes / 1073741824.0)
         bytes >= 1024L * 1024L -> "%.1f MB".format(bytes / 1048576.0)
         else -> "%.0f KB".format(bytes / 1024.0)
+    }
+}
+
+
+/** Trabalho persistente: WorkManager mantém a análise agendada fora da Activity. */
+class SmartCareScanWorker(appContext: Context, params: WorkerParameters) : CoroutineWorker(appContext, params) {
+    override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
+        val prefs = applicationContext.getSharedPreferences("smartcare_cleaner", Context.MODE_PRIVATE)
+        try {
+            prefs.edit().putString("message", "Analisando imagens, vídeos, áudios e arquivos compartilhados…").apply()
+            val found = findCandidates(applicationContext)
+            val array = JSONArray()
+            found.forEach { item ->
+                array.put(JSONObject().apply {
+                    put("uri", item.uri.toString())
+                    put("name", item.name)
+                    put("size", item.size)
+                    put("kind", item.kind)
+                    put("note", item.note)
+                })
+            }
+            prefs.edit().putString("results", array.toString())
+                .putString("message", "Análise concluída: ${found.size} itens para revisar. Nada foi apagado.")
+                .apply()
+            Result.success()
+        } catch (e: Exception) {
+            prefs.edit().putString("message", "A análise foi interrompida: ${e.message ?: "erro inesperado"}. Tente novamente.").apply()
+            Result.retry()
+        }
     }
 }
