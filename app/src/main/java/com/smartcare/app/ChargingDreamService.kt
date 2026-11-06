@@ -29,6 +29,8 @@ class ChargingDreamService : DreamService() {
     private lateinit var current: TextView
     private lateinit var ring: BatteryRingView
     private val handler = Handler(Looper.getMainLooper())
+    private var accentColor: Int = 0xFF69C8FF.toInt()
+    private var backgroundColor: Int = 0xFF080D14.toInt()
     private var lastBatteryRead = 0L
 
     private val batteryReceiver = object : BroadcastReceiver() {
@@ -97,15 +99,27 @@ class ChargingDreamService : DreamService() {
     }
 
     private fun buildScreen() {
+        val theme = getSharedPreferences("smartcare_settings", Context.MODE_PRIVATE)
+            .getString("theme", "classic") ?: "classic"
+        accentColor = when (theme) {
+            "petrol" -> 0xFF48A9A6.toInt()
+            "black" -> 0xFF69C8FF.toInt()
+            else -> 0xFF5BB8F5.toInt()
+        }
+        backgroundColor = when (theme) {
+            "petrol" -> 0xFF071F25.toInt()
+            "black" -> 0xFF080D14.toInt()
+            else -> 0xFF07182B.toInt()
+        }
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
             setPadding(dp(28), dp(24), dp(28), dp(24))
-            setBackgroundColor(0xFF080D14.toInt())
+            setBackgroundColor(backgroundColor)
         }
         clock = label(76f, 0xFFF2F7FC.toInt(), true)
         date = label(17f, 0xFF91A6B8.toInt(), false)
-        percent = label(42f, 0xFF69C8FF.toInt(), true)
+        percent = label(42f, accentColor, true)
         status = label(18f, 0xFFEAF1F7.toInt(), true)
         temperature = label(15f, 0xFFA8B5C2.toInt(), false)
         current = label(14f, 0xFFA8B5C2.toInt(), false)
@@ -183,10 +197,10 @@ class ChargingDreamService : DreamService() {
         }
         ring.level = value.coerceAtLeast(0)
         ring.tint = when {
-            temp.isNaN() -> 0xFF69C8FF.toInt()
+            temp.isNaN() -> accentColor
             temp >= 40f -> 0xFFFF665E.toInt()
             temp >= 35f -> 0xFFFFC04D.toInt()
-            else -> 0xFF69C8FF.toInt()
+            else -> accentColor
         }
         ring.invalidate()
     }
