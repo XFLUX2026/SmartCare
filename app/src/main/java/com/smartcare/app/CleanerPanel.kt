@@ -45,6 +45,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
+import java.security.MessageDigest
 
 private data class CleanCandidate(
     val uri: Uri,
@@ -140,7 +141,7 @@ fun CleanerPanel() {
                 Button(onClick = {
                     val intent = Intent(Settings.ACTION_MANAGE_APPLICATIONS_SETTINGS)
                     context.startActivity(intent)
-                }, modifier = Modifier.fillMaxWidth()) { Text("Abrir configurações do Smart Care") }
+                }, modifier = Modifier.fillMaxWidth()) { Text("Gerenciar armazenamento dos aplicativos") }
             }
         }
         if (candidates.isNotEmpty()) {
@@ -196,7 +197,7 @@ fun CleanerPanel() {
 private fun findCandidates(context: android.content.Context): List<CleanCandidate> {
     val resolver = context.contentResolver
     val rows = mutableListOf<CleanCandidate>()
-    val duplicateKeys = mutableMapOf<String, Int>()
+    val firstDuplicateUris = mutableMapOf<String, Uri>()
     var blurChecks = 0
     val sources = listOf(
         Triple(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, "Imagem", MediaStore.Images.Media._ID),
@@ -216,10 +217,20 @@ private fun findCandidates(context: android.content.Context): List<CleanCandidat
                     if (size <= 0L) continue
                     val uri = ContentUris.withAppendedId(collection, id)
                     val key = "${name.lowercase(Locale.ROOT)}|$size"
-                    val previous = duplicateKeys.put(key, (duplicateKeys[key] ?: 0) + 1) ?: 0
+                    val firstUri = firstDuplicateUris.putIfAbsent(key, uri)
                     val notes = mutableListOf<String>()
                     if (size >= 100L * 1024L * 1024L) notes.add("Arquivo grande (100 MB ou mais)")
-                    if (previous > 0) notes.add("Possível duplicado: mesmo nome e tamanho")
+                    if (firstUri != null) {
+                        if (size <= 250L * 1024L * 1024L) {
+                            val identical = sha256(resolver, firstUri) == sha256(resolver, uri)
+                            notes.add(
+                                if (identical) "Duplicado confirmado: conteúdo idêntico"
+                                else "Mesmo nome e tamanho, mas conteúdo diferente"
+                            )
+                        } else {
+                            notes.add("Possível duplicado: mesmo nome e tamanho (arquivo grande demais para comparar)")
+                        }
+                    }
                     if (kind == "Imagem" && blurChecks < 120 && size < 80L * 1024L * 1024L) {
                         blurChecks++
                         if (looksPossiblyBlurry(resolver, uri)) {
@@ -236,6 +247,24 @@ private fun findCandidates(context: android.content.Context): List<CleanCandidat
         }
     }
     return rows.sortedByDescending { it.size }
+}
+
+
+private fun sha256(resolver: android.content.ContentResolver, uri: Uri): String? {
+    return try {
+        val digest = MessageDigest.getInstance("SHA-256")
+        resolver.openInputStream(uri)?.use { input ->
+            val buffer = ByteArray(64 * 1024)
+            while (true) {
+                val read = input.read(buffer)
+                if (read <= 0) break
+                digest.update(buffer, 0, read)
+            }
+        } ?: return null
+        digest.digest().joinToString("") { "%02x".format(it) }
+    } catch (_: Exception) {
+        null
+    }
 }
 
 private fun looksPossiblyBlurry(resolver: android.content.ContentResolver, uri: Uri): Boolean {
