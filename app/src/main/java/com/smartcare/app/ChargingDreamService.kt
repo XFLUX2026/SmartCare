@@ -146,7 +146,7 @@ class ChargingDreamService : DreamService() {
         }
         temperature.text = if (temp.isNaN()) "Temperatura indisponível" else
             "Temperatura da bateria: %.1f °C".format(Locale.getDefault(), temp)
-        val batteryManager = getSystemService(BATTERY_SERVICE) as BatteryManager
+        val batteryManager = getSystemService(android.content.Context.BATTERY_SERVICE) as BatteryManager
         val currentMicroA = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW)
         current.text = if (currentMicroA != Int.MIN_VALUE && currentMicroA != 0) {
             "Corrente aproximada: %.0f mA".format(Locale.getDefault(), kotlin.math.abs(currentMicroA) / 1000f)
