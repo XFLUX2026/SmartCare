@@ -1,7 +1,9 @@
 package com.smartcare.app
 
 import android.app.Activity
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.IntentFilter
 import android.content.Intent
 import android.provider.Settings
 import android.os.Build
@@ -39,6 +41,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -126,9 +129,34 @@ fun SmartCareApp() {
         LaunchedEffect(tab) {
             if (tab == 0 || tab == 3) {
                 while (true) {
-                    delay(4000)
+                    delay(30_000)
                     snap = Metrics.read(ctx)
                 }
+            }
+        }
+        DisposableEffect(tab) {
+            if (tab == 0 || tab == 3) {
+                val powerReceiver = object : BroadcastReceiver() {
+                    override fun onReceive(context: Context?, intent: Intent?) {
+                        snap = Metrics.read(ctx)
+                        HomeCareWidgetProvider.updateAll(ctx)
+                    }
+                }
+                val filter = IntentFilter().apply {
+                    addAction(Intent.ACTION_POWER_CONNECTED)
+                    addAction(Intent.ACTION_POWER_DISCONNECTED)
+                }
+                if (Build.VERSION.SDK_INT >= 33) {
+                    ctx.registerReceiver(powerReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+                } else {
+                    @Suppress("DEPRECATION")
+                    ctx.registerReceiver(powerReceiver, filter)
+                }
+                onDispose {
+                    try { ctx.unregisterReceiver(powerReceiver) } catch (_: Exception) { }
+                }
+            } else {
+                onDispose { }
             }
         }
         val tabs = listOf(
