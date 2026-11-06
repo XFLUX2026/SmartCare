@@ -81,7 +81,7 @@ fun SmartCareApp() {
         var tab by remember { mutableStateOf(0) }
         var snap by remember { mutableStateOf(Metrics.read(ctx)) }
         LaunchedEffect(tab) {
-            if (tab == 3) {
+            if (tab == 0 || tab == 3) {
                 while (true) {
                     delay(4000)
                     snap = Metrics.read(ctx)
