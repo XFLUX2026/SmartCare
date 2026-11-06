@@ -362,7 +362,7 @@ fun HomeCarePanel(
             Text("Atualizar indicadores")
         }
         Text(
-            "SMART CARE 0.3  •  XFLUX",
+            "SMART CARE 0.4  •  XFLUX",
             modifier = Modifier.fillMaxWidth(),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 10.sp,
