@@ -143,6 +143,7 @@ class ChargingDreamService : DreamService() {
 
 private class BatteryRingView(context: android.content.Context) : View(context) {
     var level: Int = 0
+    var tint: Int = 0xFF69C8FF.toInt()
     private val track = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = 13f
@@ -161,6 +162,9 @@ private class BatteryRingView(context: android.content.Context) : View(context) 
         val pad = 18f
         val rect = RectF(pad, pad, width - pad, height - pad)
         canvas.drawArc(rect, 0f, 360f, false, track)
+        progress.color = tint
         canvas.drawArc(rect, -90f, 360f * level.coerceIn(0, 100) / 100f, false, progress)
+        val movingStart = (android.os.SystemClock.uptimeMillis() / 18L % 360L).toFloat()
+        canvas.drawArc(rect, movingStart, 13f, false, movingGlow)
     }
 }
