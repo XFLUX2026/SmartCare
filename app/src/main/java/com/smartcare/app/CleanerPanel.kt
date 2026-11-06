@@ -222,10 +222,16 @@ private fun findCandidates(context: android.content.Context): List<CleanCandidat
                     if (size >= 100L * 1024L * 1024L) notes.add("Arquivo grande (100 MB ou mais)")
                     if (firstUri != null) {
                         if (size <= 250L * 1024L * 1024L) {
-                            val identical = sha256(resolver, firstUri) == sha256(resolver, uri)
+                            val firstHash = sha256(resolver, firstUri)
+                            val currentHash = sha256(resolver, uri)
                             notes.add(
-                                if (identical) "Duplicado confirmado: conteúdo idêntico"
-                                else "Mesmo nome e tamanho, mas conteúdo diferente"
+                                when {
+                                    firstHash != null && currentHash != null && firstHash == currentHash ->
+                                        "Duplicado confirmado: conteúdo idêntico"
+                                    firstHash != null && currentHash != null ->
+                                        "Mesmo nome e tamanho, mas conteúdo diferente"
+                                    else -> "Possível duplicado: não foi possível comparar o conteúdo"
+                                }
                             )
                         } else {
                             notes.add("Possível duplicado: mesmo nome e tamanho (arquivo grande demais para comparar)")
