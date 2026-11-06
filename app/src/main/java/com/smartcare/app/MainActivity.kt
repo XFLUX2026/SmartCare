@@ -37,8 +37,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -262,31 +261,40 @@ fun HomeCarePanel(
                 Text("Central de informações do aparelho", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
             }
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                Box {
-                    TextButton(onClick = { themeMenuExpanded = true }) { Text("Tema: " + when (themeName) { "petrol" -> "Petróleo"; "black" -> "Black"; else -> "Azul" }) }
-                    DropdownMenu(
-                        expanded = themeMenuExpanded,
-                        onDismissRequest = { themeMenuExpanded = false }
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("Azul clássico") },
-                            onClick = { onThemeChange("classic"); themeMenuExpanded = false }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Azul-petróleo") },
-                            onClick = { onThemeChange("petrol"); themeMenuExpanded = false }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Black") },
-                            onClick = { onThemeChange("black"); themeMenuExpanded = false }
-                        )
-                    }
+                TextButton(onClick = { themeMenuExpanded = true }) {
+                    Text("Tema: " + when (themeName) { "petrol" -> "Petróleo"; "black" -> "Black"; else -> "Azul" })
                 }
                 Button(onClick = { editing = !editing }) {
                     Text(if (editing) "Concluir" else "Organizar")
                 }
             }
         }
+        if (themeMenuExpanded) {
+            AlertDialog(
+                onDismissRequest = { themeMenuExpanded = false },
+                title = { Text("Escolha o tema") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Button(
+                            onClick = { onThemeChange("classic"); themeMenuExpanded = false },
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text(if (themeName == "classic") "✓ Azul clássico" else "Azul clássico") }
+                        Button(
+                            onClick = { onThemeChange("petrol"); themeMenuExpanded = false },
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text(if (themeName == "petrol") "✓ Azul-petróleo" else "Azul-petróleo") }
+                        Button(
+                            onClick = { onThemeChange("black"); themeMenuExpanded = false },
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text(if (themeName == "black") "✓ Black" else "Black") }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { themeMenuExpanded = false }) { Text("Fechar") }
+                }
+            )
+        }
+
         if (editing) {
             Text(
                 "Use as setas para mudar a posição e Ocultar para retirar um indicador do painel. A organização fica salva neste aparelho.",
