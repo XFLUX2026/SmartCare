@@ -29,6 +29,19 @@
                 android:resource="@xml/home_care_widget_info" />
         </receiver>
 
+        <service
+            android:name=".ChargingDreamService"
+            android:exported="true"
+            android:label="Smart Care - Tela de carregamento"
+            android:permission="android.permission.BIND_DREAM_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.dreams.DreamService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.dream"
+                android:resource="@xml/charging_dream_info" />
+        </service>
+
         <activity
             android:name=".MainActivity"
             android:exported="true">
