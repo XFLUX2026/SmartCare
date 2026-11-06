@@ -162,6 +162,7 @@ fun SmartCareApp() {
                         onThemeChange = { selected ->
                             themeName = selected
                             prefs.edit().putString("theme", selected).apply()
+                            HomeCareWidgetProvider.updateAll(ctx)
                         },
                         onRefresh = { snap = Metrics.read(ctx) }
                     ) { destination -> tab = destination }
