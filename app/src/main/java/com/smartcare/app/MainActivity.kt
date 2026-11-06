@@ -23,6 +23,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -79,6 +85,7 @@ fun SmartCareApp() {
     MaterialTheme(colorScheme = scheme) {
         val ctx = LocalContext.current
         var tab by remember { mutableStateOf(0) }
+        var menuExpanded by remember { mutableStateOf(false) }
         var snap by remember { mutableStateOf(Metrics.read(ctx)) }
         LaunchedEffect(tab) {
             if (tab == 0 || tab == 3) {
@@ -98,15 +105,30 @@ fun SmartCareApp() {
         )
         Scaffold(
             containerColor = Bg,
-            bottomBar = {
-                NavigationBar(containerColor = Color.White) {
-                    tabs.forEachIndexed { index, item ->
-                        NavigationBarItem(
-                            selected = tab == index,
-                            onClick = { tab = index },
-                            icon = { Text(item.second) },
-                            label = { Text(item.first, fontSize = 10.sp) }
-                        )
+            topBar = {
+                Row(
+                    modifier = Modifier.fillMaxWidth().height(52.dp).padding(horizontal = 8.dp),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box {
+                        IconButton(onClick = { menuExpanded = true }) {
+                            Icon(Icons.Filled.MoreVert, contentDescription = "Abrir menu")
+                        }
+                        DropdownMenu(
+                            expanded = menuExpanded,
+                            onDismissRequest = { menuExpanded = false }
+                        ) {
+                            tabs.forEachIndexed { index, item ->
+                                DropdownMenuItem(
+                                    text = { Text("${item.second}  ${item.first}") },
+                                    onClick = {
+                                        tab = index
+                                        menuExpanded = false
+                                    }
+                                )
+                            }
+                        }
                     }
                 }
             }
