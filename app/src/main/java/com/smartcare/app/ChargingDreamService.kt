@@ -2,6 +2,7 @@ package com.smartcare.app
 
 import android.content.Intent
 import android.content.IntentFilter
+import android.os.BatteryManager
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.RectF
@@ -23,6 +24,7 @@ class ChargingDreamService : DreamService() {
     private lateinit var percent: TextView
     private lateinit var status: TextView
     private lateinit var temperature: TextView
+    private lateinit var current: TextView
     private lateinit var ring: BatteryRingView
     private val handler = Handler(Looper.getMainLooper())
     private var lastBatteryRead = 0L
@@ -78,6 +80,7 @@ class ChargingDreamService : DreamService() {
         percent = label(42f, 0xFF69C8FF.toInt(), true)
         status = label(18f, 0xFFEAF1F7.toInt(), true)
         temperature = label(15f, 0xFFA8B5C2.toInt(), false)
+        current = label(14f, 0xFFA8B5C2.toInt(), false)
 
         root.addView(clock, centeredParams())
         root.addView(date, centeredParams().apply { bottomMargin = dp(26) })
@@ -92,6 +95,7 @@ class ChargingDreamService : DreamService() {
         root.addView(ringFrame, LinearLayout.LayoutParams(dp(280), dp(280)))
         root.addView(status, centeredParams().apply { topMargin = dp(20) })
         root.addView(temperature, centeredParams().apply { topMargin = dp(10) })
+        root.addView(current, centeredParams().apply { topMargin = dp(6) })
         val welcome = label(15f, 0xFFEAF1F7.toInt(), true).apply {
             text = "Olá! Seja bem-vindo."
         }
@@ -123,6 +127,7 @@ class ChargingDreamService : DreamService() {
             percent.text = "—"
             status.text = "Dados da bateria indisponíveis"
             temperature.text = ""
+            current.text = ""
             ring.level = 0
             return
         }
@@ -141,6 +146,13 @@ class ChargingDreamService : DreamService() {
         }
         temperature.text = if (temp.isNaN()) "Temperatura indisponível" else
             "Temperatura da bateria: %.1f °C".format(Locale.getDefault(), temp)
+        val batteryManager = getSystemService(BATTERY_SERVICE) as BatteryManager
+        val currentMicroA = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW)
+        current.text = if (currentMicroA != Int.MIN_VALUE && currentMicroA != 0) {
+            "Corrente aproximada: %.0f mA".format(Locale.getDefault(), kotlin.math.abs(currentMicroA) / 1000f)
+        } else {
+            "Corrente indisponível neste aparelho"
+        }
         ring.level = value.coerceAtLeast(0)
         ring.tint = when {
             temp.isNaN() -> 0xFF69C8FF.toInt()
