@@ -7,7 +7,6 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
-import android.os.Build
 import android.provider.Settings
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
