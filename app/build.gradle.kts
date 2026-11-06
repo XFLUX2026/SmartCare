@@ -12,8 +12,8 @@ android {
         applicationId = "com.smartcare.app"
         minSdk = 26
         targetSdk = 34
-        versionCode = 4
-        versionName = "0.4"
+        versionCode = 5
+        versionName = "0.5"
     }
 
     // Assinatura: usa as variaveis de ambiente do GitHub Actions; se nao existirem,
