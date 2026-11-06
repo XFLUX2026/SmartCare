@@ -43,6 +43,10 @@
         </service>
 
         <activity
+            android:name=".ChargingPreviewActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+        <activity
             android:name=".MainActivity"
             android:exported="true">
             <intent-filter>
