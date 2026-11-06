@@ -153,19 +153,19 @@ private class BatteryRingView(context: android.content.Context) : View(context) 
     var tint: Int = 0xFF69C8FF.toInt()
     private val track = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
-        strokeWidth = 13f
+        strokeWidth = 13f * resources.displayMetrics.density
         color = 0xFF263543.toInt()
         strokeCap = Paint.Cap.ROUND
     }
     private val progress = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
-        strokeWidth = 13f
+        strokeWidth = 13f * resources.displayMetrics.density
         color = 0xFF69C8FF.toInt()
         strokeCap = Paint.Cap.ROUND
     }
     private val movingGlow = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
-        strokeWidth = 4f
+        strokeWidth = 4f * resources.displayMetrics.density
         color = 0xFFFFFFFF.toInt()
         strokeCap = Paint.Cap.ROUND
         alpha = 170
@@ -173,7 +173,7 @@ private class BatteryRingView(context: android.content.Context) : View(context) 
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
-        val pad = 18f
+        val pad = 18f * resources.displayMetrics.density
         val rect = RectF(pad, pad, width - pad, height - pad)
         canvas.drawArc(rect, 0f, 360f, false, track)
         progress.color = tint
