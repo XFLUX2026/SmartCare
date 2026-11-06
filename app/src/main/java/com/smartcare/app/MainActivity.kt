@@ -361,6 +361,13 @@ fun HomeCarePanel(
             Text("Atualizar indicadores")
         }
         Text(
+            "SMART CARE 0.3  •  XFLUX",
+            modifier = Modifier.fillMaxWidth(),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontSize = 10.sp,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+        )
+        Text(
             "O Home Care faz leituras pontuais. Não mantém um serviço permanente em segundo plano.",
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 11.sp
