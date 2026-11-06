@@ -46,9 +46,9 @@ class HomeCareWidgetProvider : AppWidgetProvider() {
             ids.forEach { id ->
                 val views = RemoteViews(context.packageName, R.layout.home_care_widget)
 
-                views.setTextViewText("widget_health_value", "${snapshot.health.score}/100")
+                views.setTextViewText(R.id.widget_health_value, "${snapshot.health.score}/100")
                 views.setTextViewText(
-                    "widget_health_detail",
+                    R.id.widget_health_detail,
                     if (snapshot.health.reasons.isEmpty()) "Sem alertas" else snapshot.health.reasons.first()
                 )
 
@@ -57,14 +57,14 @@ class HomeCareWidgetProvider : AppWidgetProvider() {
                     append(snapshot.battery.status)
                     if (!snapshot.battery.tempC.isNaN()) append(" • %.1f °C".format(snapshot.battery.tempC))
                 }
-                views.setTextViewText("widget_battery_value", battery)
-                views.setTextViewText("widget_battery_detail", batteryDetail)
+                views.setTextViewText(R.id.widget_battery_value, battery)
+                views.setTextViewText(R.id.widget_battery_detail, batteryDetail)
 
-                views.setTextViewText("widget_ram_value", "${snapshot.ram.percent.toInt()}%")
-                views.setTextViewText("widget_ram_detail", "${fmt(snapshot.ram.available)} livres")
+                views.setTextViewText(R.id.widget_ram_value, "${snapshot.ram.percent.toInt()}%")
+                views.setTextViewText(R.id.widget_ram_detail, "${fmt(snapshot.ram.available)} livres")
 
-                views.setTextViewText("widget_storage_value", "${snapshot.storage.percent.toInt()}%")
-                views.setTextViewText("widget_storage_detail", "${fmt(snapshot.storage.free)} livres")
+                views.setTextViewText(R.id.widget_storage_value, "${snapshot.storage.percent.toInt()}%")
+                views.setTextViewText(R.id.widget_storage_detail, "${fmt(snapshot.storage.free)} livres")
 
                 val openIntent = Intent(context, MainActivity::class.java).apply {
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
