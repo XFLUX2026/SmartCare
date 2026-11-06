@@ -58,7 +58,6 @@ class HomeCareWidgetProvider : AppWidgetProvider() {
                     "petrol" -> R.drawable.home_care_widget_bg_petrol
                     else -> R.drawable.home_care_widget_bg
                 }
-                val mainText = if (dark) android.graphics.Color.rgb(235, 243, 250) else android.graphics.Color.rgb(35, 55, 70)
                 val mutedText = if (dark) android.graphics.Color.rgb(164, 181, 196) else android.graphics.Color.rgb(83, 101, 122)
                 val accent = when (theme) {
                     "petrol" -> android.graphics.Color.rgb(15, 100, 112)
