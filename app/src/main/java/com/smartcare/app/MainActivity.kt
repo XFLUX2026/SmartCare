@@ -605,7 +605,13 @@ fun BatteryPanel(b: BatteryInfo, onRefresh: () -> Unit) {
         CardBox {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Tela de carregamento estilo Motorola", fontWeight = FontWeight.SemiBold)
-                Text("Relógio grande, círculo animado da bateria e temperatura. Para ativar automaticamente durante o carregamento, abra a proteção de tela do Android e escolha Smart Care como proteção de tela; configure para iniciar enquanto o aparelho estiver carregando.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+                Text("Veja primeiro a tela completa em uma prévia. Para aparecer automaticamente quando o celular estiver apoiado e carregando, ative depois a Proteção de tela do Android. A tela de bloqueio, senha e digital continuam sendo controladas pelo sistema.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+                Button(
+                    onClick = {
+                        context.startActivity(Intent(context, ChargingPreviewActivity::class.java))
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text("Abrir prévia da tela Motorola") }
                 Button(
                     onClick = {
                         try {
@@ -615,7 +621,7 @@ fun BatteryPanel(b: BatteryInfo, onRefresh: () -> Unit) {
                         }
                     },
                     modifier = Modifier.fillMaxWidth()
-                ) { Text("Configurar tela de carregamento") }
+                ) { Text("Ativar para carregar automaticamente") }
             }
         }
         Button(onClick = onRefresh, modifier = Modifier.fillMaxWidth()) {
