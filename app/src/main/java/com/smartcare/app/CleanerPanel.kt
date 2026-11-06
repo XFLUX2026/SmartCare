@@ -127,7 +127,7 @@ fun CleanerPanel() {
                 Text("Cache de aplicativos", fontWeight = FontWeight.SemiBold)
                 Text("Por segurança, o Android não permite que um app limpe diretamente o cache privado de outros aplicativos. Abra as configurações para revisar o armazenamento de cada app.", style = MaterialTheme.typography.bodySmall)
                 Button(onClick = {
-                    val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + context.packageName))
+                    val intent = Intent(Settings.ACTION_MANAGE_APPLICATIONS_SETTINGS)
                     context.startActivity(intent)
                 }, modifier = Modifier.fillMaxWidth()) { Text("Abrir configurações do Smart Care") }
             }
