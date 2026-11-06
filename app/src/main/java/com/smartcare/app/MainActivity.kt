@@ -117,6 +117,7 @@ fun SmartCareApp() {
                         tab = destination
                     }
                     1 -> Dashboard(snap) { snap = Metrics.read(ctx) }
+                    2 -> CleanerPanel()
                     3 -> BatteryPanel(snap.battery) { snap = Metrics.read(ctx) }
                     4 -> RamPanel(snap.ram) { snap = Metrics.read(ctx) }
                     5 -> StoragePanel(snap.storage) { snap = Metrics.read(ctx) }
