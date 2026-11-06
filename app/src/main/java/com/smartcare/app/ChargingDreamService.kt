@@ -69,7 +69,7 @@ class ChargingDreamService : DreamService() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            setPadding(28, 24, 28, 24)
+            setPadding(dp(28), dp(24), dp(28), dp(24))
             setBackgroundColor(0xFF080D14.toInt())
         }
         clock = label(76f, 0xFFF2F7FC.toInt(), true)
@@ -79,22 +79,22 @@ class ChargingDreamService : DreamService() {
         temperature = label(15f, 0xFFA8B5C2.toInt(), false)
 
         root.addView(clock, centeredParams())
-        root.addView(date, centeredParams().apply { bottomMargin = 26 })
+        root.addView(date, centeredParams().apply { bottomMargin = dp(26) })
         val ringFrame = FrameLayout(this)
         ring = BatteryRingView(this)
-        ringFrame.addView(ring, FrameLayout.LayoutParams(250, 250, Gravity.CENTER))
+        ringFrame.addView(ring, FrameLayout.LayoutParams(dp(250), dp(250), Gravity.CENTER))
         ringFrame.addView(percent, FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.WRAP_CONTENT,
             FrameLayout.LayoutParams.WRAP_CONTENT,
             Gravity.CENTER
         ))
-        root.addView(ringFrame, LinearLayout.LayoutParams(280, 280))
-        root.addView(status, centeredParams().apply { topMargin = 20 })
-        root.addView(temperature, centeredParams().apply { topMargin = 10 })
+        root.addView(ringFrame, LinearLayout.LayoutParams(dp(280), dp(280)))
+        root.addView(status, centeredParams().apply { topMargin = dp(20) })
+        root.addView(temperature, centeredParams().apply { topMargin = dp(10) })
         val welcome = label(12f, 0xFF60788D.toInt(), false).apply {
             text = "SMART CARE  •  MONITORAMENTO DE BATERIA"
         }
-        root.addView(welcome, centeredParams().apply { topMargin = 36 })
+        root.addView(welcome, centeredParams().apply { topMargin = dp(36) })
         setContentView(root)
     }
 
@@ -104,6 +104,8 @@ class ChargingDreamService : DreamService() {
         gravity = Gravity.CENTER
         if (bold) setTypeface(typeface, android.graphics.Typeface.BOLD)
     }
+
+    private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
 
     private fun centeredParams() = LinearLayout.LayoutParams(
         LinearLayout.LayoutParams.MATCH_PARENT,
