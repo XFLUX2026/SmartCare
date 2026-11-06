@@ -9,6 +9,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,6 +24,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -547,7 +549,7 @@ fun BatteryPanel(b: BatteryInfo, onRefresh: () -> Unit) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Temperatura da bateria", fontWeight = FontWeight.SemiBold)
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Box(Modifier.size(14.dp).then(Modifier), ) {}
+                    Box(Modifier.size(14.dp).background(tempColor, CircleShape)) {}
                     Text(if (tempKnown) "%.1f °C".format(b.tempC) else "Indisponível", fontSize = 27.sp, fontWeight = FontWeight.Bold, color = tempColor)
                 }
                 Text(tempStatus, color = tempColor, fontSize = 13.sp)
