@@ -95,7 +95,7 @@ fun SmartCareApp() {
             primary = Color(0xFF1E6FD9),
             secondary = Color(0xFF5BB8F5),
             background = Color(0xFFF4F9FF),
-            surface = MaterialTheme.colorScheme.surface,
+            surface = Color(0xFFFFFFFF),
             onSurface = Color(0xFF17212B),
             onSurfaceVariant = Color(0xFF687582)
         )
@@ -214,7 +214,7 @@ fun HomeCarePanel(
             }
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                 Box {
-                    TextButton(onClick = { themeMenuExpanded = true }) { Text("Tema") }
+                    TextButton(onClick = { themeMenuExpanded = true }) { Text("Tema: " + when (themeName) { "petrol" -> "Petróleo"; "black" -> "Black"; else -> "Azul" }) }
                     DropdownMenu(
                         expanded = themeMenuExpanded,
                         onDismissRequest = { themeMenuExpanded = false }
