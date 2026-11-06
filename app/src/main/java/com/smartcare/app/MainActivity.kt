@@ -1,6 +1,8 @@
 package com.smartcare.app
 
 import android.content.Context
+import android.content.Intent
+import android.provider.Settings
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -486,6 +488,7 @@ fun Dashboard(snap: Snapshot, onRefresh: () -> Unit) {
 
 @Composable
 fun BatteryPanel(b: BatteryInfo, onRefresh: () -> Unit) {
+    val context = LocalContext.current
     val tempKnown = !b.tempC.isNaN()
     val tempColor = when {
         !tempKnown -> MaterialTheme.colorScheme.onSurfaceVariant
@@ -545,6 +548,22 @@ fun BatteryPanel(b: BatteryInfo, onRefresh: () -> Unit) {
             }
         }
         Text("Os valores dependem dos sensores e dados disponibilizados pelo fabricante. A corrente pode variar durante a carga e o tempo restante é uma estimativa, não uma garantia.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
+        CardBox {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Tela de carregamento estilo Motorola", fontWeight = FontWeight.SemiBold)
+                Text("Relógio grande, círculo animado da bateria e temperatura. Para ativar automaticamente durante o carregamento, abra a proteção de tela do Android e escolha Smart Care como proteção de tela; configure para iniciar enquanto o aparelho estiver carregando.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+                Button(
+                    onClick = {
+                        try {
+                            context.startActivity(Intent(Settings.ACTION_DREAM_SETTINGS))
+                        } catch (_: Exception) {
+                            context.startActivity(Intent(Settings.ACTION_DISPLAY_SETTINGS))
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text("Configurar tela de carregamento") }
+            }
+        }
         Button(onClick = onRefresh, modifier = Modifier.fillMaxWidth()) {
             Text("Atualizar agora")
         }
