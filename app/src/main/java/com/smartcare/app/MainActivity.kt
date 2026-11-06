@@ -258,11 +258,11 @@ fun HomeCarePanel(
         ) {
             Column(Modifier.weight(1f)) {
                 Text("HOME CARE", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                Text("Central de informações do aparelho", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+                Text("Central de informações do aparelho", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
             }
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                 TextButton(onClick = { themeMenuExpanded = true }) {
-                    Text("Tema: " + when (themeName) { "petrol" -> "Petróleo"; "black" -> "Black"; else -> "Azul" })
+                    Text("🎨")
                 }
                 Button(onClick = { editing = !editing }) {
                     Text(if (editing) "Concluir" else "Organizar")
