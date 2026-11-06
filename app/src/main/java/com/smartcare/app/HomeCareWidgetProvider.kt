@@ -48,10 +48,15 @@ class HomeCareWidgetProvider : AppWidgetProvider() {
                 val theme = context.getSharedPreferences("smartcare_settings", Context.MODE_PRIVATE)
                     .getString("theme", "classic") ?: "classic"
                 val dark = theme == "black"
-                val cardColor = when (theme) {
-                    "black" -> android.graphics.Color.rgb(24, 34, 45)
-                    "petrol" -> android.graphics.Color.rgb(222, 237, 237)
-                    else -> android.graphics.Color.rgb(240, 246, 255)
+                val cardBackground = when (theme) {
+                    "black" -> R.drawable.widget_card_black
+                    "petrol" -> R.drawable.widget_card_petrol
+                    else -> R.drawable.widget_card_classic
+                }
+                val widgetBackground = when (theme) {
+                    "black" -> R.drawable.home_care_widget_bg_black
+                    "petrol" -> R.drawable.home_care_widget_bg_petrol
+                    else -> R.drawable.home_care_widget_bg
                 }
                 val mainText = if (dark) android.graphics.Color.rgb(235, 243, 250) else android.graphics.Color.rgb(35, 55, 70)
                 val mutedText = if (dark) android.graphics.Color.rgb(164, 181, 196) else android.graphics.Color.rgb(83, 101, 122)
@@ -60,8 +65,9 @@ class HomeCareWidgetProvider : AppWidgetProvider() {
                     "black" -> android.graphics.Color.rgb(105, 200, 255)
                     else -> android.graphics.Color.rgb(30, 111, 217)
                 }
+                views.setInt(R.id.home_care_widget_root, "setBackgroundResource", widgetBackground)
                 listOf(R.id.widget_health_card, R.id.widget_battery_card, R.id.widget_ram_card, R.id.widget_storage_card)
-                    .forEach { views.setInt(it, "setBackgroundColor", cardColor) }
+                    .forEach { views.setInt(it, "setBackgroundResource", cardBackground) }
                 views.setTextColor(R.id.widget_title, accent)
                 views.setTextColor(R.id.widget_refresh, accent)
                 listOf(R.id.widget_health_detail, R.id.widget_battery_detail, R.id.widget_ram_detail, R.id.widget_storage_detail)
