@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
+import android.os.Environment
 import android.provider.MediaStore
 import android.provider.Settings
 import android.graphics.Bitmap
@@ -72,6 +73,7 @@ fun CleanerPanel() {
     var scanning by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf("A análise roda em segundo plano e os resultados ficam salvos mesmo se você fechar o aplicativo.") }
     var hasPermission by remember { mutableStateOf(false) }
+    var hasAllFilesAccess by remember { mutableStateOf(Build.VERSION.SDK_INT >= 30 && Environment.isExternalStorageManager()) }
     val prefs = remember { context.getSharedPreferences("smartcare_cleaner", Context.MODE_PRIVATE) }
     fun restoreSavedResults() {
         val raw = prefs.getString("results", null) ?: return
@@ -87,12 +89,13 @@ fun CleanerPanel() {
     LaunchedEffect(Unit) {
         restoreSavedResults()
         while (true) {
+            hasAllFilesAccess = Build.VERSION.SDK_INT >= 30 && Environment.isExternalStorageManager()
             val infos = withContext(Dispatchers.IO) { WorkManager.getInstance(context).getWorkInfosForUniqueWork("smartcare-clean-scan").get() }
             val info = infos.firstOrNull()
             if (info != null) {
                 scanning = info.state == WorkInfo.State.RUNNING || info.state == WorkInfo.State.ENQUEUED
                 if (info.state == WorkInfo.State.SUCCEEDED) {
-                    restoreSavedResults()
+                    if (candidates.isEmpty()) restoreSavedResults()
                     message = prefs.getString("message", "Análise concluída.") ?: "Análise concluída."
                 } else if (info.state == WorkInfo.State.FAILED) {
                     message = "A análise não foi concluída. Tente novamente; resultados anteriores foram preservados."
@@ -160,6 +163,31 @@ fun CleanerPanel() {
     ) {
         Text("LIMPEZA INTELIGENTE", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
         Text("Você escolhe o que será excluído. O Smart Care nunca apaga arquivos sozinho.", style = MaterialTheme.typography.bodyMedium)
+        Card(Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Acesso a todos os arquivos", fontWeight = FontWeight.SemiBold)
+                Text(
+                    if (Build.VERSION.SDK_INT >= 30 && hasAllFilesAccess)
+                        "Acesso amplo autorizado pelo Android. O Smart Care pode analisar arquivos compartilhados em mais pastas."
+                    else if (Build.VERSION.SDK_INT >= 30)
+                        "Permita o acesso amplo nas configurações do Android para ampliar a análise de documentos, downloads e outros arquivos."
+                    else
+                        "Seu Android usa as permissões tradicionais de armazenamento.",
+                    style = MaterialTheme.typography.bodySmall
+                )
+                if (Build.VERSION.SDK_INT >= 30) {
+                    Button(onClick = {
+                        try {
+                            context.startActivity(Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION))
+                        } catch (_: Exception) {
+                            context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}")))
+                        }
+                    }, modifier = Modifier.fillMaxWidth()) {
+                        Text(if (hasAllFilesAccess) "Rever acesso nas configurações" else "Conceder acesso a todos os arquivos")
+                    }
+                }
+            }
+        }
         Card(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Análise ampla de arquivos", fontWeight = FontWeight.SemiBold)
