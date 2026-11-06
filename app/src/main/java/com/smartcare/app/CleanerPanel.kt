@@ -1,14 +1,14 @@
 package com.smartcare.app
 
 import android.Manifest
-import android.app.PendingIntent
+import android.app.RecoverableSecurityException
 import android.content.ContentUris
-import android.content.ContentValues
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
+import android.os.Build
 import android.provider.Settings
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -158,10 +158,16 @@ fun CleanerPanel() {
                     } else if (Build.VERSION.SDK_INT >= 30) {
                         val request = MediaStore.createDeleteRequest(context.contentResolver, uris)
                         deleteLauncher.launch(IntentSenderRequest.Builder(request.intentSender).build())
+                    } else if (Build.VERSION.SDK_INT == 29) {
+                        deleteLegacyMediaWithConsent(context, uris) { resultMessage ->
+                            message = resultMessage
+                            scanFiles()
+                        }
                     } else {
                         var deleted = 0
                         uris.forEach { uri ->
-                            try { if (context.contentResolver.delete(uri, null, null) > 0) deleted++ } catch (_: SecurityException) {}
+                            try { if (context.contentResolver.delete(uri, null, null) > 0) deleted++ }
+                            catch (_: SecurityException) { }
                         }
                         message = "$deleted arquivo(s) excluído(s)."
                         scanFiles()
@@ -192,6 +198,47 @@ fun CleanerPanel() {
             }
         }
     }
+}
+
+
+private fun deleteLegacyMediaWithConsent(
+    context: android.content.Context,
+    uris: List<Uri>,
+    onFinished: (String) -> Unit
+) {
+    var deleted = 0
+    fun deleteAt(index: Int) {
+        if (index >= uris.size) {
+            onFinished("$deleted arquivo(s) excluído(s).")
+            return
+        }
+        try {
+            if (context.contentResolver.delete(uris[index], null, null) > 0) deleted++
+            deleteAt(index + 1)
+        } catch (error: RecoverableSecurityException) {
+            val activity = context as? android.app.Activity
+            if (activity == null) {
+                onFinished("O Android exige confirmação na tela para excluir estes arquivos.")
+                return
+            }
+            try {
+                activity.startIntentSenderForResult(
+                    error.userAction.actionIntent.intentSender,
+                    9201,
+                    null,
+                    0,
+                    0,
+                    0
+                )
+                onFinished("O Android abriu a confirmação de exclusão. Depois, faça uma nova análise.")
+            } catch (_: Exception) {
+                onFinished("Não foi possível abrir a confirmação de exclusão.")
+            }
+        } catch (_: Exception) {
+            deleteAt(index + 1)
+        }
+    }
+    deleteAt(0)
 }
 
 private fun findCandidates(context: android.content.Context): List<CleanCandidate> {
