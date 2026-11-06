@@ -133,6 +133,10 @@ fun CleanerPanel() {
     }
 
     fun requestScan() {
+        if (Build.VERSION.SDK_INT >= 30 && Environment.isExternalStorageManager()) {
+            scanFiles()
+            return
+        }
         val permissions = when {
             Build.VERSION.SDK_INT >= 34 -> arrayOf(
                 Manifest.permission.READ_MEDIA_IMAGES,
