@@ -62,7 +62,7 @@ fun CleanerPanel() {
     val candidates = remember { mutableStateListOf<CleanCandidate>() }
     var scanning by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf("Faça uma análise para localizar arquivos grandes, possíveis duplicados e fotos possivelmente desfocadas.") }
-    var hasPermission by remember { mutableStateOf(hasMediaPermission()) }
+    var hasPermission by remember { mutableStateOf(false) }
 
     fun scanFiles() {
         scanning = true
@@ -193,14 +193,11 @@ fun CleanerPanel() {
     }
 }
 
-private fun hasMediaPermission(): Boolean {
-    return true
-}
-
 private fun findCandidates(context: android.content.Context): List<CleanCandidate> {
     val resolver = context.contentResolver
     val rows = mutableListOf<CleanCandidate>()
     val duplicateKeys = mutableMapOf<String, Int>()
+    var blurChecks = 0
     val sources = listOf(
         Triple(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, "Imagem", MediaStore.Images.Media._ID),
         Triple(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, "Vídeo", MediaStore.Video.Media._ID)
@@ -223,8 +220,11 @@ private fun findCandidates(context: android.content.Context): List<CleanCandidat
                     val notes = mutableListOf<String>()
                     if (size >= 100L * 1024L * 1024L) notes.add("Arquivo grande (100 MB ou mais)")
                     if (previous > 0) notes.add("Possível duplicado: mesmo nome e tamanho")
-                    if (kind == "Imagem" && size < 80L * 1024L * 1024L && looksPossiblyBlurry(resolver, uri)) {
-                        notes.add("Possivelmente desfocada (avaliação automática)")
+                    if (kind == "Imagem" && blurChecks < 120 && size < 80L * 1024L * 1024L) {
+                        blurChecks++
+                        if (looksPossiblyBlurry(resolver, uri)) {
+                            notes.add("Possivelmente desfocada (avaliação automática)")
+                        }
                     }
                     if (notes.isNotEmpty()) rows.add(CleanCandidate(uri, name, size, kind, notes.joinToString(" • ")))
                 }
