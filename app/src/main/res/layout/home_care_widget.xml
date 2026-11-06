@@ -13,6 +13,7 @@
         android:paddingBottom="8dp">
 
         <TextView
+            android:id="@+id/widget_title"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="HOME CARE"
@@ -39,6 +40,7 @@
         android:orientation="horizontal">
 
         <LinearLayout
+            android:id="@+id/widget_health_card"
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="1"
@@ -78,6 +80,7 @@
             android:layout_height="1dp" />
 
         <LinearLayout
+            android:id="@+id/widget_battery_card"
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="1"
@@ -124,6 +127,7 @@
         android:orientation="horizontal">
 
         <LinearLayout
+            android:id="@+id/widget_ram_card"
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="1"
@@ -163,6 +167,7 @@
             android:layout_height="1dp" />
 
         <LinearLayout
+            android:id="@+id/widget_storage_card"
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="1"

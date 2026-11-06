@@ -4,14 +4,19 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- anel -->
     <path
-        android:strokeColor="#FFFFFF"
-        android:strokeWidth="7"
+        android:fillColor="#00000000"
+        android:strokeColor="#69C8FF"
+        android:strokeWidth="5"
         android:strokeLineCap="round"
-        android:pathData="M54,30 A24,24 0 1,1 30,54" />
-    <!-- cruz de cuidado -->
+        android:pathData="M54,18 A36,36 0 1,1 53.9,18" />
     <path
-        android:fillColor="#5BB8F5"
-        android:pathData="M50,42 h8 v8 h8 v8 h-8 v8 h-8 v-8 h-8 v-8 h8 z" />
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="5"
+        android:strokeLineJoin="round"
+        android:pathData="M43,39 h22 a5,5 0 0,1 5,5 v27 a5,5 0 0,1 -5,5 h-22 a5,5 0 0,1 -5,-5 v-27 a5,5 0 0,1 5,-5 z M48,33 h12 v6 h-12 z" />
+    <path
+        android:fillColor="#69C8FF"
+        android:pathData="M58,44 L47,58 h8 l-3,13 12,-17 h-8 z" />
 </vector>

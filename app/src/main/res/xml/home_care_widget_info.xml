@@ -3,9 +3,9 @@
     android:description="@string/home_care_widget_description"
     android:initialLayout="@layout/home_care_widget"
     android:minWidth="250dp"
-    android:minHeight="170dp"
+    android:minHeight="220dp"
     android:targetCellWidth="4"
-    android:targetCellHeight="3"
+    android:targetCellHeight="4"
     android:resizeMode="horizontal|vertical"
     android:updatePeriodMillis="1800000"
     android:widgetCategory="home_screen" />
