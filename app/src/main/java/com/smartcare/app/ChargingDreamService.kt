@@ -36,6 +36,7 @@ class ChargingDreamService : DreamService() {
                 updateBattery()
                 lastBatteryRead = now
             }
+            if (::ring.isInitialized) ring.invalidate()
             handler.postDelayed(this, 1_000L)
         }
     }
@@ -137,6 +138,12 @@ class ChargingDreamService : DreamService() {
         temperature.text = if (temp.isNaN()) "Temperatura indisponível" else
             "Temperatura da bateria: %.1f °C".format(Locale.getDefault(), temp)
         ring.level = value.coerceAtLeast(0)
+        ring.tint = when {
+            temp.isNaN() -> 0xFF69C8FF.toInt()
+            temp >= 40f -> 0xFFFF665E.toInt()
+            temp >= 35f -> 0xFFFFC04D.toInt()
+            else -> 0xFF69C8FF.toInt()
+        }
         ring.invalidate()
     }
 }
@@ -155,6 +162,13 @@ private class BatteryRingView(context: android.content.Context) : View(context) 
         strokeWidth = 13f
         color = 0xFF69C8FF.toInt()
         strokeCap = Paint.Cap.ROUND
+    }
+    private val movingGlow = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeWidth = 4f
+        color = 0xFFFFFFFF.toInt()
+        strokeCap = Paint.Cap.ROUND
+        alpha = 170
     }
 
     override fun onDraw(canvas: Canvas) {
