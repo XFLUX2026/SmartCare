@@ -44,7 +44,7 @@ class ChargingDreamService : DreamService() {
         super.onAttachedToWindow()
         isInteractive = false
         isFullscreen = true
-        isScreenBright = true
+        isScreenBright = false
         buildScreen()
         updateBattery()
     }
@@ -129,7 +129,7 @@ class ChargingDreamService : DreamService() {
         percent.text = if (value >= 0) "$value%" else "—"
         status.text = when {
             charging && value >= 100 -> "Carga completa"
-            charging -> "Carregando • animação ativa"
+            charging -> "Carregando"
             else -> "Carregador desconectado"
         }
         temperature.text = if (temp.isNaN()) "Temperatura indisponível" else
