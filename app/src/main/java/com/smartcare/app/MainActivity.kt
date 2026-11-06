@@ -1,5 +1,6 @@
 package com.smartcare.app
 
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.provider.Settings
@@ -36,6 +37,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -50,6 +52,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -103,6 +106,19 @@ fun SmartCareApp() {
         )
     }
     MaterialTheme(colorScheme = scheme) {
+        SideEffect {
+            val activity = ctx as? Activity
+            activity?.window?.let { window ->
+                val dark = themeName == "black"
+                window.statusBarColor = if (dark) android.graphics.Color.rgb(9, 13, 18) else
+                    if (themeName == "petrol") android.graphics.Color.rgb(234, 243, 243) else android.graphics.Color.rgb(244, 249, 255)
+                window.navigationBarColor = if (dark) android.graphics.Color.rgb(20, 27, 35) else android.graphics.Color.WHITE
+                WindowInsetsControllerCompat(window, window.decorView).apply {
+                    isAppearanceLightStatusBars = !dark
+                    isAppearanceLightNavigationBars = !dark
+                }
+            }
+        }
         var tab by remember { mutableStateOf(0) }
         var snap by remember { mutableStateOf(Metrics.read(ctx)) }
         LaunchedEffect(tab) {
