@@ -149,6 +149,24 @@ fun CleanerPanel() {
                 Text("${candidates.size} itens encontrados", fontWeight = FontWeight.SemiBold)
                 Text("${selected.size} selecionados", color = MaterialTheme.colorScheme.primary)
             }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = {
+                        for (index in candidates.indices) {
+                            candidates[index] = candidates[index].copy(selected = true)
+                        }
+                    },
+                    modifier = Modifier.weight(1f)
+                ) { Text("Selecionar todos") }
+                Button(
+                    onClick = {
+                        for (index in candidates.indices) {
+                            candidates[index] = candidates[index].copy(selected = false)
+                        }
+                    },
+                    modifier = Modifier.weight(1f)
+                ) { Text("Limpar seleção") }
+            }
             Button(
                 onClick = {
                     val uris = selected.map { it.uri }
