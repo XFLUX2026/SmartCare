@@ -1,5 +1,7 @@
 package com.smartcare.app
 
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.BatteryManager
@@ -29,6 +31,14 @@ class ChargingDreamService : DreamService() {
     private val handler = Handler(Looper.getMainLooper())
     private var lastBatteryRead = 0L
 
+    private val batteryReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            updateBattery()
+            lastBatteryRead = System.currentTimeMillis()
+        }
+    }
+    private var batteryReceiverRegistered = false
+
     private val ticker = object : Runnable {
         override fun run() {
             clock.text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
@@ -55,16 +65,34 @@ class ChargingDreamService : DreamService() {
     override fun onDreamingStarted() {
         super.onDreamingStarted()
         handler.removeCallbacks(ticker)
+        if (!batteryReceiverRegistered) {
+            val filter = IntentFilter(Intent.ACTION_BATTERY_CHANGED)
+            if (android.os.Build.VERSION.SDK_INT >= 33) {
+                registerReceiver(batteryReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+            } else {
+                @Suppress("DEPRECATION")
+                registerReceiver(batteryReceiver, filter)
+            }
+            batteryReceiverRegistered = true
+        }
         handler.post(ticker)
     }
 
     override fun onDreamingStopped() {
         handler.removeCallbacks(ticker)
+        if (batteryReceiverRegistered) {
+            try { unregisterReceiver(batteryReceiver) } catch (_: Exception) { }
+            batteryReceiverRegistered = false
+        }
         super.onDreamingStopped()
     }
 
     override fun onDetachedFromWindow() {
         handler.removeCallbacks(ticker)
+        if (batteryReceiverRegistered) {
+            try { unregisterReceiver(batteryReceiver) } catch (_: Exception) { }
+            batteryReceiverRegistered = false
+        }
         super.onDetachedFromWindow()
     }
 
