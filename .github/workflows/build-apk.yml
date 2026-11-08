@@ -114,7 +114,7 @@ jobs:
           if imp not in lines:
               package_index = next(i for i, line in enumerate(lines) if line.startswith('package '))
               lines[package_index + 1:package_index + 1] = ['', imp]
-          p.write_text('\\n'.join(lines) + '\\n')
+          p.write_text('\n'.join(lines) + '\n')
           print("Correções aplicadas aos três arquivos.")
           PY
 
