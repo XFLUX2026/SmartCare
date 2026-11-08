@@ -105,13 +105,16 @@ jobs:
           clean = "app/src/main/java/com/smartcare/app/ui/screens/Clean.kt"
           p = Path(clean)
           s = p.read_text()
-          helper = 'private fun Modifier.background(color: Color): Modifier = this.then(androidx.compose.foundation.background(color))\\n'
-          if helper not in s:
+          lines = s.splitlines()
+          helper = 'private fun Modifier.background(color: Color): Modifier = this.then(androidx.compose.foundation.background(color))'
+          if helper not in lines:
               raise SystemExit("Clean.kt: função background esperada não encontrada")
-          s = s.replace(helper, '')
-          if 'import androidx.compose.foundation.background\\n' not in s:
-              s = s.replace('package com.smartcare.app.ui.screens\\n', 'package com.smartcare.app.ui.screens\\n\\nimport androidx.compose.foundation.background\\n', 1)
-          p.write_text(s)
+          lines.remove(helper)
+          imp = 'import androidx.compose.foundation.background'
+          if imp not in lines:
+              package_index = next(i for i, line in enumerate(lines) if line.startswith('package '))
+              lines[package_index + 1:package_index + 1] = ['', imp]
+          p.write_text('\\n'.join(lines) + '\\n')
           print("Correções aplicadas aos três arquivos.")
           PY
 
