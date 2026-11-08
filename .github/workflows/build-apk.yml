@@ -106,10 +106,10 @@ jobs:
           p = Path(clean)
           s = p.read_text()
           lines = s.splitlines()
-          helper = 'private fun Modifier.background(color: Color): Modifier = this.then(androidx.compose.foundation.background(color))'
-          if helper not in lines:
-              raise SystemExit("Clean.kt: função background esperada não encontrada")
-          lines.remove(helper)
+          matches = [line for line in lines if line.strip().startswith('private fun Modifier.background(')]
+          if len(matches) != 1:
+              raise SystemExit(f"Clean.kt: esperada uma função background, encontradas {len(matches)}")
+          lines = [line for line in lines if not line.strip().startswith('private fun Modifier.background(')]
           imp = 'import androidx.compose.foundation.background'
           if imp not in lines:
               package_index = next(i for i, line in enumerate(lines) if line.startswith('package '))
