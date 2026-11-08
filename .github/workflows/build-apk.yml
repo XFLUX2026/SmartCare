@@ -80,6 +80,28 @@ jobs:
               raise SystemExit("Arquivos obrigatórios ausentes: " + ", ".join(missing))
           PY
 
+      - name: Inspecionar trechos dos arquivos com erro
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          files = [
+              "app/src/main/java/com/smartcare/app/HomeCareWidgetProvider.kt",
+              "app/src/main/java/com/smartcare/app/battery/BatteryInfo.kt",
+              "app/src/main/java/com/smartcare/app/ui/screens/Clean.kt",
+          ]
+          for name in files:
+              p = Path(name)
+              print("\\n===== " + name + " =====")
+              if p.exists():
+                  lines = p.read_text().splitlines()
+                  for i, line in enumerate(lines, 1):
+                      if (name.endswith("HomeCareWidgetProvider.kt") and 45 <= i <= 78) or (name.endswith("BatteryInfo.kt") and 95 <= i <= 125) or (name.endswith("Clean.kt") and 355 <= i <= 390):
+                          print(f"{i}: {line}")
+              else:
+                  print("ARQUIVO NÃO ENCONTRADO")
+          PY
+
       - name: Configurar Gradle 8.7
         uses: gradle/actions/setup-gradle@v4
         with:
