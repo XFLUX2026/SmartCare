@@ -99,8 +99,8 @@ jobs:
           edit(widget, 'fmt(snapshot.storage.free)', 'android.text.format.Formatter.formatShortFileSize(context, snapshot.storage.free)')
 
           battery = "app/src/main/java/com/smartcare/app/battery/BatteryInfo.kt"
-          edit(battery, 'val soh: Int? = if (Build.VERSION.SDK_INT >= 34) {\\n            bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_STATE_OF_HEALTH).takeIf { it in 1..100 }\\n        } else null',
-               'val soh: Int? = null // API pública do Android não disponibiliza BATTERY_PROPERTY_STATE_OF_HEALTH')
+          edit(battery, 'bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_STATE_OF_HEALTH).takeIf { it in 1..100 }',
+               'null // API pública do Android não disponibiliza BATTERY_PROPERTY_STATE_OF_HEALTH')
 
           clean = "app/src/main/java/com/smartcare/app/ui/screens/Clean.kt"
           p = Path(clean)
