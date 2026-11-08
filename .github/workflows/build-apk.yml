@@ -80,26 +80,39 @@ jobs:
               raise SystemExit("Arquivos obrigatórios ausentes: " + ", ".join(missing))
           PY
 
-      - name: Inspecionar trechos dos arquivos com erro
+      - name: Corrigir erros de compilação encontrados
         shell: bash
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          files = [
-              "app/src/main/java/com/smartcare/app/HomeCareWidgetProvider.kt",
-              "app/src/main/java/com/smartcare/app/battery/BatteryInfo.kt",
-              "app/src/main/java/com/smartcare/app/ui/screens/Clean.kt",
-          ]
-          for name in files:
-              p = Path(name)
-              print("\\n===== " + name + " =====")
-              if p.exists():
-                  lines = p.read_text().splitlines()
-                  for i, line in enumerate(lines, 1):
-                      if (name.endswith("HomeCareWidgetProvider.kt") and 45 <= i <= 78) or (name.endswith("BatteryInfo.kt") and 95 <= i <= 125) or (name.endswith("Clean.kt") and 355 <= i <= 390):
-                          print(f"{i}: {line}")
-              else:
-                  print("ARQUIVO NÃO ENCONTRADO")
+
+          def edit(path, old, new, expected=1):
+              p = Path(path)
+              s = p.read_text()
+              count = s.count(old)
+              if count != expected:
+                  raise SystemExit(f"{path}: esperado {expected} ocorrência(s), encontrado {count}: {old!r}")
+              p.write_text(s.replace(old, new))
+
+          widget = "app/src/main/java/com/smartcare/app/HomeCareWidgetProvider.kt"
+          edit(widget, 'fmt(snapshot.ram.available)', 'android.text.format.Formatter.formatShortFileSize(context, snapshot.ram.available)')
+          edit(widget, 'fmt(snapshot.storage.free)', 'android.text.format.Formatter.formatShortFileSize(context, snapshot.storage.free)')
+
+          battery = "app/src/main/java/com/smartcare/app/battery/BatteryInfo.kt"
+          edit(battery, 'val soh: Int? = if (Build.VERSION.SDK_INT >= 34) {\\n            bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_STATE_OF_HEALTH).takeIf { it in 1..100 }\\n        } else null',
+               'val soh: Int? = null // API pública do Android não disponibiliza BATTERY_PROPERTY_STATE_OF_HEALTH')
+
+          clean = "app/src/main/java/com/smartcare/app/ui/screens/Clean.kt"
+          p = Path(clean)
+          s = p.read_text()
+          helper = 'private fun Modifier.background(color: Color): Modifier = this.then(androidx.compose.foundation.background(color))\\n'
+          if helper not in s:
+              raise SystemExit("Clean.kt: função background esperada não encontrada")
+          s = s.replace(helper, '')
+          if 'import androidx.compose.foundation.background\\n' not in s:
+              s = s.replace('package com.smartcare.app.ui.screens\\n', 'package com.smartcare.app.ui.screens\\n\\nimport androidx.compose.foundation.background\\n', 1)
+          p.write_text(s)
+          print("Correções aplicadas aos três arquivos.")
           PY
 
       - name: Configurar Gradle 8.7
