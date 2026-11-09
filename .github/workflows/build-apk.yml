@@ -7,6 +7,7 @@ on:
     paths:
       - 'files.zip'
       - '.github/workflows/build-apk.yml'
+      - 'app/**'
 
 permissions:
   contents: read
@@ -28,8 +29,20 @@ jobs:
         shell: bash
         run: |
           python3 - <<'PY'
-          import zipfile, pathlib, shutil, os, sys
+          import zipfile, pathlib, shutil, os, sys, subprocess
           repo = pathlib.Path.cwd()
+          # Preserve all files already versioned in Git; files.zip may be an older snapshot.
+          tracked_backup = pathlib.Path('/tmp/smartcare-tracked')
+          tracked_backup.mkdir(parents=True, exist_ok=True)
+          tracked = subprocess.check_output(['git', 'ls-files', '-z']).decode().split('\\0')
+          for rel in tracked:
+              if not rel:
+                  continue
+              source = repo / rel
+              if source.is_file():
+                  target = tracked_backup / rel
+                  target.parent.mkdir(parents=True, exist_ok=True)
+                  shutil.copy2(source, target)
           archive = repo / "files.zip"
           work = pathlib.Path("/tmp/smartcare-unpack")
           if not archive.exists():
@@ -74,6 +87,13 @@ jobs:
                   shutil.copytree(item, dest, dirs_exist_ok=True)
               else:
                   shutil.copy2(item, dest)
+          # Restore tracked project files after extracting the possibly stale ZIP.
+          for saved in tracked_backup.rglob('*'):
+              if saved.is_file():
+                  rel = saved.relative_to(tracked_backup)
+                  target = repo / rel
+                  target.parent.mkdir(parents=True, exist_ok=True)
+                  shutil.copy2(saved, target)
           required = ["settings.gradle.kts", "build.gradle.kts", "app/build.gradle.kts"]
           missing = [x for x in required if not (repo / x).exists()]
           if missing:
@@ -496,6 +516,43 @@ jobs:
           print("Relógio transparente, clima e protetor de tela adicionados.")
 
           print("Correções aplicadas aos três arquivos.")
+
+          # Finalize the new city-based neon widget and remove the old GPS widget.
+          import re
+          manager = java / "ClockWeatherManager.kt"
+          manager.write_text(r'''package com.smartcare.app
+
+          import android.content.Context
+          import kotlin.concurrent.thread
+
+          object ClockWeatherManager {
+              fun summary(context: Context): String = context.getSharedPreferences("smartcare_weather", Context.MODE_PRIVATE)
+                  .getString("summary", "Configure uma cidade no Smart Care para ver o clima")
+                  ?: "Clima indisponível"
+
+              fun refresh(context: Context) {
+                  val app = context.applicationContext
+                  val prefs = app.getSharedPreferences("smartcare_weather", Context.MODE_PRIVATE)
+                  val latitude = prefs.getString("latitude", null)?.toDoubleOrNull() ?: return
+                  val longitude = prefs.getString("longitude", null)?.toDoubleOrNull() ?: return
+                  thread(name = "SmartCareScreenWeather") {
+                      val now = Weather.fetchNow(latitude, longitude) ?: return@thread
+                      val city = prefs.getString("city", "") ?: ""
+                      val text = "$city • ${now.temp}°C • ${WeatherArt.label(now.code)}"
+                      prefs.edit().putString("summary", text).apply()
+                      NeonClockWeatherWidgetProvider.refreshWeather(app)
+                  }
+              }
+          }
+          ''')
+          manifest = base / "AndroidManifest.xml"
+          ms = manifest.read_text()
+          ms = re.sub(r'\\s*<receiver android:name="\\.ClockWeatherWidgetProvider".*?</receiver>', '', ms, flags=re.S)
+          ms = '\\n'.join(line for line in ms.splitlines() if 'ACCESS_COARSE_LOCATION' not in line and 'ACCESS_FINE_LOCATION' not in line) + '\\n'
+          manifest.write_text(ms)
+          old_provider = java / "ClockWeatherWidgetProvider.kt"
+          if old_provider.exists(): old_provider.unlink()
+          print("Widget antigo por GPS removido; relógio e clima por cidade mantidos.")
           PY
 
       - name: Configurar Gradle 8.7
