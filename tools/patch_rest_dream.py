@@ -327,8 +327,8 @@ if '6 -> RestDreamSettingsPanel()' not in src:
     else:
         print("Linhas de navegação encontradas em MainActivity.kt:")
         for number, line in enumerate(src.splitlines(), 1):
-            if any(word in line for word in ("when (", "when(", "Placeholder", "StoragePanel", "ClockWeatherPanel", "Arquivos", "Relógio")):
-                print(f"{number}: {line}")
+            if number <= 240:
+                print(f"{number}: {line[:260]}")
         raise SystemExit("Não encontrei a estrutura de navegação para ligar o painel.")
 main.write_text(src, encoding="utf-8")
 print("Módulo RestDream, Canvas, bateria por BroadcastReceiver, clima por cidade e configurações aplicados.")
