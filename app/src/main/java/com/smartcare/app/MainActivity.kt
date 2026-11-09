@@ -65,14 +65,14 @@ private val Bg = Color(0xFFF4F9FF)
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { SmartCareApp() }
+        setContent { SmartCareRoot() }
         HomeCareWidgetProvider.updateAll(this)
         NeonClockWeatherWidgetProvider.updateAll(this)
     }
 }
 
 @Composable
-fun SmartCareApp() {
+fun SmartCareRoot() {
     val scheme = lightColorScheme(
         primary = BlueMid,
         secondary = BlueLight,
