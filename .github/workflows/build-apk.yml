@@ -270,14 +270,6 @@ jobs:
           src = main.read_text()
           src = src.replace('"Arquivos" to "📁"\n        )', '"Arquivos" to "📁",\n            "Relógio e clima" to "🕒"\n        )')
           src = src.replace('                    5 -> StoragePanel(snap.storage) { snap = Metrics.read(ctx) }\n                    else -> Placeholder', '                    5 -> StoragePanel(snap.storage) { snap = Metrics.read(ctx) }\n                    6 -> ClockWeatherPanel()\n                    else -> Placeholder')
-          src = src.replace('class MainActivity : ComponentActivity() {\n    override fun onCreate', '''class MainActivity : ComponentActivity() {
-              override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
-                  super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-                  if (requestCode == 901 && grantResults.any { it == android.content.pm.PackageManager.PERMISSION_GRANTED }) {
-            ClockWeatherManager.refresh(this)
-                  }
-              }
-              override fun onCreate''')
           panel = '''
           @Composable
           fun ClockWeatherPanel() {
