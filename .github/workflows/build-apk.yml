@@ -115,6 +115,158 @@ jobs:
               package_index = next(i for i, line in enumerate(lines) if line.startswith('package '))
               lines[package_index + 1:package_index + 1] = ['', imp]
           p.write_text('\n'.join(lines) + '\n')
+          # Widget transparente de relógio/clima e protetor de tela.
+          from pathlib import Path
+          base = Path("app/src/main")
+          java = base / "java/com/smartcare/app"
+          (java / "ClockWeatherManager.kt").write_text(r'''package com.smartcare.app
+
+import android.Manifest
+import android.appwidget.AppWidgetManager
+import android.content.ComponentName
+import android.content.Context
+import android.content.pm.PackageManager
+import android.location.Location
+import android.location.LocationManager
+import androidx.core.content.ContextCompat
+import org.json.JSONObject
+import java.net.HttpURLConnection
+import java.net.URL
+
+object ClockWeatherManager {
+    private const val PREFS = "clock_weather"
+    fun summary(context: Context) = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        .getString("summary", "Ative a localização no Smart Care para ver o clima") ?: "Clima indisponível"
+    fun refresh(context: Context) {
+        val app = context.applicationContext
+        Thread {
+            try {
+                val fine = ContextCompat.checkSelfPermission(app, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                val coarse = ContextCompat.checkSelfPermission(app, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                if (!fine && !coarse) { save(app, "Ative a localização no Smart Care para ver o clima"); return@Thread }
+                val lm = app.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+                val loc: Location? = lm.getProviders(true).mapNotNull { provider ->
+                    try { lm.getLastKnownLocation(provider) } catch (_: SecurityException) { null }
+                }.maxByOrNull { it.time }
+                if (loc == null) { save(app, "Aguardando GPS. Ative a localização e tente novamente."); return@Thread }
+                val url = URL("https://api.open-meteo.com/v1/forecast?latitude=" + loc.latitude + "&longitude=" + loc.longitude + "&current=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min&timezone=auto")
+                val conn = url.openConnection() as HttpURLConnection
+                conn.connectTimeout = 10000; conn.readTimeout = 10000
+                val json = JSONObject(conn.inputStream.bufferedReader().use { it.readText() }); conn.disconnect()
+                val current = json.getJSONObject("current"); val daily = json.getJSONObject("daily")
+                val temp = current.getDouble("temperature_2m").toInt()
+                val code = current.getInt("weather_code")
+                val max = daily.getJSONArray("temperature_2m_max").getDouble(0).toInt()
+                val min = daily.getJSONArray("temperature_2m_min").getDouble(0).toInt()
+                val condition = when (code) {
+                    0 -> "Céu limpo"; 1, 2 -> "Parcialmente nublado"; 3 -> "Nublado"
+                    45, 48 -> "Neblina"; 51, 53, 55, 56, 57 -> "Garoa"
+                    61, 63, 65, 66, 67, 80, 81, 82 -> "Chuva"
+                    71, 73, 75, 77, 85, 86 -> "Neve"; 95, 96, 99 -> "Trovoadas"
+                    else -> "Condição variável"
+                }
+                save(app, "$condition • $temp°C • Máx. $max° / Mín. $min°")
+            } catch (_: Exception) { save(app, "Sem atualização do clima. Verifique a internet.") }
+        }.start()
+    }
+    private fun save(context: Context, value: String) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString("summary", value).apply()
+        val manager = AppWidgetManager.getInstance(context)
+        val ids = manager.getAppWidgetIds(ComponentName(context, ClockWeatherWidgetProvider::class.java))
+        if (ids.isNotEmpty()) ClockWeatherWidgetProvider.update(context, manager, ids)
+    }
+}
+''')
+          (java / "ClockWeatherWidgetProvider.kt").write_text(r'''package com.smartcare.app
+import android.appwidget.AppWidgetManager
+import android.appwidget.AppWidgetProvider
+import android.content.Context
+import android.widget.RemoteViews
+class ClockWeatherWidgetProvider : AppWidgetProvider() {
+    override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) {
+        update(context, manager, ids); ClockWeatherManager.refresh(context)
+    }
+    companion object {
+        fun update(context: Context, manager: AppWidgetManager, ids: IntArray) {
+            ids.forEach { id ->
+                val views = RemoteViews(context.packageName, R.layout.clock_weather_widget)
+                views.setTextViewText(R.id.clock_weather_summary, ClockWeatherManager.summary(context))
+                manager.updateAppWidget(id, views)
+            }
+        }
+    }
+}
+''')
+          (java / "SmartCareDreamService.kt").write_text(r'''package com.smartcare.app
+import android.service.dreams.DreamService
+import android.view.Gravity
+import android.view.ViewGroup
+import android.widget.LinearLayout
+import android.widget.TextClock
+import android.widget.TextView
+import android.graphics.Color
+class SmartCareDreamService : DreamService() {
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        isInteractive = false; isFullscreen = true
+        val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER; setBackgroundColor(Color.BLACK); setPadding(28,28,28,28) }
+        val clock = TextClock(this).apply { format12Hour = "h:mm"; format24Hour = "HH:mm"; textSize = 82f; setTextColor(Color.WHITE); gravity = Gravity.CENTER }
+        val date = TextClock(this).apply { format12Hour = "EEEE, d 'de' MMMM"; format24Hour = "EEEE, d 'de' MMMM"; textSize = 20f; setTextColor(0xFFB8C7D9.toInt()); gravity = Gravity.CENTER }
+        val weather = TextView(this).apply { text = ClockWeatherManager.summary(this@SmartCareDreamService); textSize = 18f; setTextColor(Color.WHITE); gravity = Gravity.CENTER; setPadding(0,28,0,0) }
+        root.addView(clock, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        root.addView(date, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        root.addView(weather, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        setContentView(root)
+    }
+    override fun onDreamingStarted() { super.onDreamingStarted(); ClockWeatherManager.refresh(this) }
+}
+''')
+          (base / "res/layout/clock_weather_widget.xml").write_text(r'''<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+ android:layout_width="match_parent" android:layout_height="match_parent"
+ android:orientation="vertical" android:gravity="center" android:padding="12dp"
+ android:background="@android:color/transparent">
+ <TextClock android:layout_width="match_parent" android:layout_height="wrap_content"
+  android:format12Hour="h:mm" android:format24Hour="HH:mm" android:textColor="#FFFFFFFF"
+  android:textSize="52sp" android:gravity="center" android:shadowColor="#CC000000" android:shadowRadius="8"/>
+ <TextClock android:layout_width="match_parent" android:layout_height="wrap_content"
+  android:format12Hour="EEEE, d 'de' MMMM" android:format24Hour="EEEE, d 'de' MMMM"
+  android:textColor="#FFFFFFFF" android:textSize="14sp" android:gravity="center"/>
+ <TextView android:id="@+id/clock_weather_summary" android:layout_width="match_parent"
+  android:layout_height="wrap_content" android:text="Ative a localização no Smart Care para ver o clima"
+  android:textColor="#FFFFFFFF" android:textSize="14sp" android:gravity="center" android:paddingTop="8dp"
+  android:shadowColor="#CC000000" android:shadowRadius="6"/>
+</LinearLayout>
+''')
+          (base / "res/xml/clock_weather_widget_info.xml").write_text(r'''<?xml version="1.0" encoding="utf-8"?>
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+ android:description="@string/clock_weather_widget_description" android:initialLayout="@layout/clock_weather_widget"
+ android:minWidth="180dp" android:minHeight="110dp" android:resizeMode="horizontal|vertical"
+ android:updatePeriodMillis="1800000" android:widgetCategory="home_screen|keyguard"/>
+''')
+          (base / "res/values/clock_weather_strings.xml").write_text(r'''<?xml version="1.0" encoding="utf-8"?>
+<resources><string name="clock_weather_widget_description">Relógio transparente com data e clima</string><string name="smartcare_dream_label">Relógio e clima Smart Care</string></resources>
+''')
+          manifest = base / "AndroidManifest.xml"
+          ms = manifest.read_text()
+          ms = ms.replace('<manifest xmlns:android="http://schemas.android.com/apk/res/android">', '<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n    <uses-permission android:name="android.permission.INTERNET"/>\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>')
+          declarations = '''
+          <receiver android:name=".ClockWeatherWidgetProvider" android:exported="true">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/clock_weather_widget_info"/>
+          </receiver>
+          <service android:name=".SmartCareDreamService" android:exported="true"
+            android:permission="android.permission.BIND_DREAM_SERVICE" android:label="@string/smartcare_dream_label">
+            <intent-filter><action android:name="android.service.dreams.DreamService"/></intent-filter>
+          </service>
+          '''
+          ms = ms.replace('    </application>', declarations + '    </application>')
+          manifest.write_text(ms)
+          gradle = Path("app/build.gradle.kts")
+          gs = gradle.read_text().replace("versionCode = 2", "versionCode = 3").replace('versionName = "0.2"', 'versionName = "0.3"')
+          gradle.write_text(gs)
+          print("Relógio transparente, clima e protetor de tela adicionados.")
+
           print("Correções aplicadas aos três arquivos.")
           PY
 
