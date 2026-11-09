@@ -464,7 +464,7 @@ jobs:
           main = java / "MainActivity.kt"
           src = main.read_text()
           src = src.replace('"Arquivos" to "📁"\n        )', '"Arquivos" to "📁",\n            "Relógio e clima" to "🕒"\n        )')
-          src = src.replace('                    5 -> StoragePanel(snap.storage) { snap = Metrics.read(ctx) }\n                    else -> Placeholder', '                    5 -> StoragePanel(snap.storage) { snap = Metrics.read(ctx) }\n                    6 -> ClockWeatherPanel()\n                    else -> Placeholder')
+          src = src.replace('                    5 -> StoragePanel(snap.storage) { snap = Metrics.read(ctx) }\n                    else -> Placeholder', '                    5 -> StoragePanel(snap.storage) { snap = Metrics.read(ctx) }\n                    6 -> LocationWeatherPanel()\n                    else -> Placeholder')
           panel = '''
           @Composable
           fun ClockWeatherPanel() {
