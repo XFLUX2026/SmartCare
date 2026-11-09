@@ -94,7 +94,7 @@ jobs:
                   target = repo / rel
                   target.parent.mkdir(parents=True, exist_ok=True)
                   shutil.copy2(saved, target)
-          required = ["settings.gradle.kts", "build.gradle.kts", "app/build.gradle.kts"]
+          # Prevent the stale ZIP from restoring the duplicate resource removed from Git.\n          duplicate_weather_string = repo / "app/src/main/res/values/neon_weather_strings.xml"\n          if duplicate_weather_string.exists():\n              duplicate_weather_string.unlink()\n          required = ["settings.gradle.kts", "build.gradle.kts", "app/build.gradle.kts"]
           missing = [x for x in required if not (repo / x).exists()]
           if missing:
               raise SystemExit("Arquivos obrigatórios ausentes: " + ", ".join(missing))
