@@ -2,16 +2,21 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:padding="4dp">
+    android:padding="2dp">
+
+    <ImageView
+        android:id="@+id/neon_ring"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="fitCenter"
+        android:contentDescription="@null" />
 
     <LinearLayout
-        android:layout_width="250dp"
-        android:layout_height="250dp"
-        android:layout_gravity="center"
-        android:background="@drawable/neon_weather_circle"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
         android:gravity="center"
         android:orientation="vertical"
-        android:padding="18dp">
+        android:padding="34dp">
 
         <TextClock
             android:id="@+id/neon_clock"
@@ -20,25 +25,37 @@
             android:format12Hour="h:mm"
             android:format24Hour="HH:mm"
             android:includeFontPadding="false"
-            android:textColor="#FFFFFF"
-            android:textSize="42sp"
-            android:textStyle="bold" />
+            android:textColor="#FFFFFFFF"
+            android:textSize="40sp"
+            android:textStyle="bold"
+            android:shadowColor="#FF00E5FF"
+            android:shadowRadius="12" />
 
-        <TextView
-            android:id="@+id/neon_weather_icon"
+        <TextClock
+            android:id="@+id/neon_date"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="1dp"
-            android:text="🌤️"
-            android:textSize="42sp" />
+            android:format12Hour="EEEE, d 'de' MMMM"
+            android:format24Hour="EEEE, d 'de' MMMM"
+            android:gravity="center"
+            android:textColor="#FFD5E8FF"
+            android:textSize="11sp" />
+
+        <ImageView
+            android:id="@+id/neon_weather_icon"
+            android:layout_width="76dp"
+            android:layout_height="76dp"
+            android:layout_marginTop="3dp"
+            android:scaleType="fitCenter"
+            android:contentDescription="Condição atual do tempo" />
 
         <TextView
             android:id="@+id/neon_temperature"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="--"
-            android:textColor="#FFFFFF"
-            android:textSize="30sp"
+            android:text="--°C"
+            android:textColor="#FFFFFFFF"
+            android:textSize="27sp"
             android:textStyle="bold" />
 
         <TextView
@@ -47,20 +64,20 @@
             android:layout_height="wrap_content"
             android:gravity="center"
             android:maxLines="1"
-            android:text="Ative a localização"
-            android:textColor="#D7F9FF"
-            android:textSize="12sp" />
+            android:text="Configure uma cidade"
+            android:textColor="#FFD7F9FF"
+            android:textSize="11sp" />
 
         <TextView
             android:id="@+id/neon_city"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
+            android:layout_marginTop="3dp"
             android:ellipsize="end"
             android:gravity="center"
             android:maxLines="1"
-            android:text="Localização do celular"
-            android:textColor="#63E8E0"
-            android:textSize="11sp" />
+            android:text="Smart Care"
+            android:textColor="#FF63E8E0"
+            android:textSize="10sp" />
     </LinearLayout>
 </FrameLayout>
