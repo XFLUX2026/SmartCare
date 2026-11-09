@@ -51,8 +51,8 @@ class NeonClockWeatherWidgetProvider : AppWidgetProvider() {
 
             ids.forEach { id ->
                 val views = RemoteViews(context.packageName, R.layout.neon_clock_weather_widget)
-                views.setImageViewBitmap(R.id.neon_ring, WeatherArt.ring(512))
-                views.setImageViewBitmap(R.id.neon_weather_icon, WeatherArt.icon(WeatherArt.kind(code), day, 180))
+                views.setImageViewBitmap(R.id.neon_ring, WeatherArt.ring(320))
+                views.setImageViewBitmap(R.id.neon_weather_icon, WeatherArt.icon(WeatherArt.kind(code), day, 128))
                 views.setTextViewText(R.id.neon_temperature, temperature)
                 views.setTextViewText(R.id.neon_description, description)
                 views.setTextViewText(R.id.neon_city, city)
