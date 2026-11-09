@@ -97,7 +97,8 @@ fun SmartCareApp() {
             "Limpeza" to "🧹",
             "Bateria" to "🔋",
             "Monitor" to "📊",
-            "Arquivos" to "📁"
+            "Arquivos" to "📁",
+            "Localização e Clima" to "🌤️"
         )
         Scaffold(
             containerColor = Bg,
@@ -138,6 +139,7 @@ fun SmartCareApp() {
                     3 -> BatteryPanel(snap.battery) { snap = Metrics.read(ctx) }
                     4 -> RamPanel(snap.ram) { snap = Metrics.read(ctx) }
                     5 -> StoragePanel(snap.storage) { snap = Metrics.read(ctx) }
+                    6 -> LocationWeatherPanel()
                     else -> Placeholder(tabs[tab].first)
                 }
             }
