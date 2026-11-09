@@ -274,4 +274,5 @@ if not settings_matches:
 for path, source, pos in settings_matches:
     print("SETTINGS_FILE:", path)
     print(source[max(0, pos - 1000):pos + 9000])
-print("Localizei SettingsScreen; a próxima etapa vai substituir somente essa tela.")
+print("Localizei SettingsScreen; diagnóstico da assinatura concluído.")
+raise SystemExit("DIAGNOSTICO_SETTINGS_SCREEN")
