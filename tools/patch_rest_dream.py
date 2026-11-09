@@ -266,7 +266,6 @@ main = java / "MainActivity.kt"
 if not main.exists():
     raise SystemExit("MainActivity.kt não encontrado no projeto extraído.")
 src = main.read_text(encoding="utf-8")
-src = src.replace('6 -> ClockWeatherPanel()', '6 -> RestDreamSettingsPanel()')
 if 'fun RestDreamSettingsPanel()' not in src:
     panel = r'''
 @Composable
@@ -314,11 +313,22 @@ fun RestDreamSettingsPanel() {
     }
 }
 '''
-    marker = '@Composable\nfun Placeholder'
-    if marker not in src:
-        raise SystemExit("Não encontrei o ponto de inserção dos painéis em MainActivity.kt.")
-    src = src.replace(marker, panel + '\n' + marker, 1)
+    marker = re.search(r'(?m)^@Composable\s*\n(?:private\s+)?fun\s+Placeholder', src)
+    if marker:
+        src = src[:marker.start()] + panel + '\n' + src[marker.start():]
+    else:
+        src = src.rstrip() + '\n\n' + panel + '\n'
+
 if '6 -> RestDreamSettingsPanel()' not in src:
-    raise SystemExit("Não encontrei a rota do módulo Relógio e clima.")
+    route = re.search(r'(?m)^(\s*)else\s*->\s*Placeholder', src)
+    if route:
+        indent = route.group(1)
+        src = src[:route.start()] + indent + '6 -> RestDreamSettingsPanel()\n' + src[route.start():]
+    else:
+        print("Linhas de navegação encontradas em MainActivity.kt:")
+        for number, line in enumerate(src.splitlines(), 1):
+            if any(word in line for word in ("when (", "when(", "Placeholder", "StoragePanel", "ClockWeatherPanel", "Arquivos", "Relógio")):
+                print(f"{number}: {line}")
+        raise SystemExit("Não encontrei a estrutura de navegação para ligar o painel.")
 main.write_text(src, encoding="utf-8")
 print("Módulo RestDream, Canvas, bateria por BroadcastReceiver, clima por cidade e configurações aplicados.")
