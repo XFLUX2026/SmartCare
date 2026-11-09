@@ -20,42 +20,45 @@ object Weather {
     )
 
     private fun get(url: String): String {
-        val c = URL(url).openConnection() as HttpURLConnection
-        c.connectTimeout = 8000
-        c.readTimeout = 8000
+        val connection = URL(url).openConnection() as HttpURLConnection
+        connection.connectTimeout = 8000
+        connection.readTimeout = 8000
+        connection.requestMethod = "GET"
         return try {
-            c.inputStream.bufferedReader().use { it.readText() }
+            connection.inputStream.bufferedReader().use { it.readText() }
         } finally {
-            c.disconnect()
+            connection.disconnect()
         }
     }
 
     /** Retorna Triple(rótulo "Cidade - UF", latitude, longitude) ou null. */
     fun geocode(city: String): Triple<String, Double, Double>? = runCatching {
-        val q = URLEncoder.encode(city, "UTF-8")
-        val r = JSONObject(
-            get("https://geocoding-api.open-meteo.com/v1/search?name=$q&count=1&language=pt")
-        ).optJSONArray("results")?.getJSONObject(0) ?: return null
-        val uf = if (r.optString("country_code") == "BR") UF[r.optString("admin1")] else null
-        val label = if (uf != null) "${r.getString("name")} - $uf" else r.getString("name")
-        Triple(label, r.getDouble("latitude"), r.getDouble("longitude"))
+        val query = URLEncoder.encode(city.trim(), "UTF-8")
+        val result = JSONObject(
+            get("https://geocoding-api.open-meteo.com/v1/search?name=$query&count=1&language=pt")
+        ).optJSONArray("results")?.optJSONObject(0) ?: return null
+        val uf = if (result.optString("country_code") == "BR") UF[result.optString("admin1")] else null
+        val label = if (uf != null) "${result.getString("name")} - $uf" else result.getString("name")
+        Triple(label, result.getDouble("latitude"), result.getDouble("longitude"))
     }.getOrNull()
 
-    fun fetchNow(lat: Double, lon: Double): Now? = runCatching {
-        val cur = JSONObject(
+    fun fetchNow(latitude: Double, longitude: Double): Now? = runCatching {
+        val current = JSONObject(
             get(
-                "https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon" +
+                "https://api.open-meteo.com/v1/forecast?latitude=$latitude&longitude=$longitude" +
                     "&current=temperature_2m,weather_code,is_day&timezone=auto"
             )
         ).getJSONObject("current")
         Now(
-            Math.round(cur.getDouble("temperature_2m")).toInt(),
-            cur.getInt("weather_code"),
-            cur.getInt("is_day") == 1
+            Math.round(current.getDouble("temperature_2m")).toInt(),
+            current.getInt("weather_code"),
+            current.getInt("is_day") == 1
         )
     }.getOrNull()
 
     /** Usado pela tela de descanso. */
-    fun fetch(lat: Double, lon: Double): String? =
-        fetchNow(lat, lon)?.let { "${it.temp}°C · ${WeatherArt.label(it.code)}" }
+    fun fetch(latitude: Double, longitude: Double): String? =
+        fetchNow(latitude, longitude)?.let {
+            "${it.temp}°C · ${WeatherArt.label(it.code)}"
+        }
 }
