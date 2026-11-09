@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Widget principal de relógio e clima neon do Smart Care -->
+<!-- Widget principal de relógio e clima neon do Smart Care. Atualização do layout. -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:description="@string/neon_weather_widget_description"
     android:initialLayout="@layout/neon_clock_weather_widget"
