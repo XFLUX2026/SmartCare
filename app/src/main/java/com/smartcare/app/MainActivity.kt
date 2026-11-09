@@ -67,6 +67,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent { SmartCareApp() }
         HomeCareWidgetProvider.updateAll(this)
+        NeonClockWeatherWidgetProvider.updateAll(this)
     }
 }
 
@@ -98,7 +99,7 @@ fun SmartCareApp() {
             "Bateria" to "🔋",
             "Monitor" to "📊",
             "Arquivos" to "📁",
-            "Localização e Clima" to "🌤️"
+            "Relógio e clima" to "🌤️"
         )
         Scaffold(
             containerColor = Bg,
