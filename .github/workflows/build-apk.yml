@@ -34,7 +34,7 @@ jobs:
           # Preserve all files already versioned in Git; files.zip may be an older snapshot.
           tracked_backup = pathlib.Path('/tmp/smartcare-tracked')
           tracked_backup.mkdir(parents=True, exist_ok=True)
-          tracked = subprocess.check_output(['git', 'ls-files', '-z']).decode().split('\\0')
+          tracked = subprocess.check_output(['git', 'ls-files', '-z']).decode().split(chr(0))
           for rel in tracked:
               if not rel:
                   continue
@@ -547,8 +547,8 @@ jobs:
           ''')
           manifest = base / "AndroidManifest.xml"
           ms = manifest.read_text()
-          ms = re.sub(r'\\s*<receiver android:name="\\.ClockWeatherWidgetProvider".*?</receiver>', '', ms, flags=re.S)
-          ms = '\\n'.join(line for line in ms.splitlines() if 'ACCESS_COARSE_LOCATION' not in line and 'ACCESS_FINE_LOCATION' not in line) + '\\n'
+          ms = re.sub(r'\s*<receiver android:name="\.ClockWeatherWidgetProvider".*?</receiver>', '', ms, flags=re.S)
+          ms = '\n'.join(line for line in ms.splitlines() if 'ACCESS_COARSE_LOCATION' not in line and 'ACCESS_FINE_LOCATION' not in line) + '\n'
           manifest.write_text(ms)
           old_provider = java / "ClockWeatherWidgetProvider.kt"
           if old_provider.exists(): old_provider.unlink()
