@@ -262,17 +262,107 @@ if 'android:name=".RestDream"' not in ms:
     ms = ms.replace('</application>', declaration + '    </application>')
 manifest.write_text(ms, encoding="utf-8")
 
-screen_files = list((base / "java").rglob("*.kt"))
-settings_matches = []
-for path in screen_files:
-    source = path.read_text(encoding="utf-8")
-    match = re.search(r'\bfun\s+SettingsScreen\s*\(', source)
-    if match:
-        settings_matches.append((path, source, match.start()))
-if not settings_matches:
-    raise SystemExit("Não encontrei a função SettingsScreen no projeto extraído.")
-for path, source, pos in settings_matches:
-    print("SETTINGS_FILE:", path)
-    print(source[max(0, pos - 1000):pos + 9000])
-print("Localizei SettingsScreen; diagnóstico da assinatura concluído.")
-raise SystemExit("DIAGNOSTICO_SETTINGS_SCREEN")
+settings_file = base / "java/com/smartcare/app/ui/screens/Settings.kt"
+if not settings_file.exists():
+    raise SystemExit("Settings.kt não encontrado no projeto extraído.")
+settings = settings_file.read_text(encoding="utf-8")
+
+imports = [
+    "import android.content.Intent",
+    "import android.os.Handler",
+    "import android.os.Looper",
+    "import android.provider.Settings as AndroidSettings",
+    "import androidx.compose.material3.OutlinedTextField",
+    "import androidx.compose.runtime.mutableStateOf",
+    "import androidx.compose.runtime.remember",
+    "import com.smartcare.app.Weather",
+    "import kotlin.concurrent.thread",
+]
+for line in imports:
+    if line not in settings:
+        first_import = settings.find("\nimport ")
+        if first_import >= 0:
+            settings = settings[:first_import + 1] + line + "\n" + settings[first_import + 1:]
+        else:
+            package_end = settings.find("\n")
+            settings = settings[:package_end + 1] + "\n" + line + settings[package_end + 1:]
+
+function = re.search(r'@Composable\s*\nfun\s+SettingsScreen\s*\(\s*vm\s*:\s*AppVM\s*,\s*nav\s*:\s*NavController\s*\)\s*\{', settings)
+if not function:
+    raise SystemExit("Não encontrei SettingsScreen(vm: AppVM, nav: NavController) em Settings.kt.")
+
+body_start = function.end()
+ctx_line = settings.find("val ctx = LocalContext.current", body_start)
+if ctx_line < 0:
+    raise SystemExit("Não encontrei o contexto Android dentro de SettingsScreen.")
+ctx_end = settings.find("\n", ctx_line)
+state_code = '''
+    val weatherCityState = remember { mutableStateOf(Weather.city(ctx)) }
+    val weatherStatusState = remember {
+        mutableStateOf(Weather.summary(ctx).ifBlank { "Informe uma cidade para exibir o clima." })
+    }'''
+settings = settings[:ctx_end] + state_code + settings[ctx_end:]
+
+lazy_start = settings.find("LazyColumn(", body_start)
+if lazy_start < 0:
+    raise SystemExit("Não encontrei a lista de configurações em SettingsScreen.")
+depth = 0
+open_paren = settings.find("(", lazy_start)
+close_paren = -1
+for index in range(open_paren, len(settings)):
+    if settings[index] == "(":
+        depth += 1
+    elif settings[index] == ")":
+        depth -= 1
+        if depth == 0:
+            close_paren = index
+            break
+if close_paren < 0:
+    raise SystemExit("Não consegui localizar o fechamento de LazyColumn.")
+lazy_brace = settings.find("{", close_paren)
+if lazy_brace < 0:
+    raise SystemExit("Não encontrei o início do conteúdo de LazyColumn.")
+
+settings_card = r'''
+            item {
+                SmartCard {
+                    CardTitle(Icons.Rounded.Palette, "Tela de descanso e clima")
+                    Text(
+                        "Relógio grande estilo Motorola, data em português e anel néon segmentado com o nível da bateria.",
+                        color = c.muted, fontSize = 13.sp, modifier = Modifier.padding(vertical = 6.dp)
+                    )
+                    OutlinedTextField(
+                        value = weatherCityState.value,
+                        onValueChange = { weatherCityState.value = it },
+                        label = { Text("Cidade para o clima") },
+                        placeholder = { Text("Ex.: Rio de Janeiro") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Button(onClick = {
+                        weatherStatusState.value = "Buscando a cidade e consultando o clima..."
+                        val requestedCity = weatherCityState.value
+                        thread {
+                            val result = Weather.configureCity(ctx.applicationContext, requestedCity)
+                            Handler(Looper.getMainLooper()).post { weatherStatusState.value = result }
+                        }
+                    }) { Text("Salvar cidade e atualizar clima") }
+                    Text(weatherStatusState.value, color = c.muted, fontSize = 12.sp)
+                    OutlinedButton(onClick = {
+                        try {
+                            ctx.startActivity(Intent(AndroidSettings.ACTION_DREAM_SETTINGS))
+                        } catch (_: Exception) {
+                            ctx.startActivity(Intent(AndroidSettings.ACTION_DISPLAY_SETTINGS))
+                        }
+                    }) { Text("Abrir configurações da tela de descanso") }
+                    Text(
+                        "Nas configurações do Android, selecione “Smart Care - tela de descanso”. Sem cidade salva ou sem internet, o clima fica oculto. A bateria é atualizada por BroadcastReceiver, sem polling.",
+                        color = c.muted, fontSize = 12.sp
+                    )
+                }
+            }
+'''
+if "Tela de descanso e clima" not in settings:
+    settings = settings[:lazy_brace + 1] + "\n" + settings_card + settings[lazy_brace + 1:]
+settings_file.write_text(settings, encoding="utf-8")
+print("DreamService, clima por cidade e painel adicionados às Configurações existentes.")
