@@ -1,32 +1,21 @@
 package com.smartcare.app
 
-import android.Manifest
 import android.content.Context
-import android.content.pm.PackageManager
-import android.location.Location
-import android.location.LocationListener
-import android.location.LocationManager
-import android.os.Build
-import android.os.Bundle
-import android.os.Looper
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -39,7 +28,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
-import androidx.core.content.ContextCompat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -47,139 +35,134 @@ import kotlinx.coroutines.withContext
 @Composable
 fun LocationWeatherPanel() {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
     val prefs = remember { context.getSharedPreferences("smartcare_weather", Context.MODE_PRIVATE) }
-    var city by remember { mutableStateOf(prefs.getString("city", "Ainda não configurada") ?: "Ainda não configurada") }
-    var temperature by remember { mutableStateOf(prefs.getString("temperature", "--") ?: "--") }
-    var description by remember { mutableStateOf(prefs.getString("description", "Ative a localização para consultar o clima") ?: "") }
-    var icon by remember { mutableStateOf(prefs.getString("icon", "🌤️") ?: "🌤️") }
-    var status by remember { mutableStateOf("A localização só será usada após sua autorização.") }
+    val scope = rememberCoroutineScope()
+    var cityInput by remember { mutableStateOf(prefs.getString("city_input", "") ?: "") }
+    var city by remember { mutableStateOf(prefs.getString("city", "Cidade não configurada") ?: "") }
+    var temperature by remember { mutableStateOf(prefs.getString("temperature", "--°C") ?: "--°C") }
+    var description by remember { mutableStateOf(prefs.getString("description", "Informe sua cidade para consultar o clima") ?: "") }
+    var status by remember { mutableStateOf("O clima é consultado pela internet, sem precisar ativar o GPS.") }
     var loading by remember { mutableStateOf(false) }
 
-    fun updateFromLocation() {
-        loading = true
-        status = "Obtendo localização e consultando o clima..."
-        requestCurrentLocation(context) { location ->
-            if (location == null) {
-                loading = false
-                status = "Não foi possível obter a localização. Verifique se o serviço de localização está ligado."
-            } else {
-                scope.launch {
-                    try {
-                        val weather = withContext(Dispatchers.IO) {
-                            WeatherLocation.fetch(context, location)
-                        }
-                        city = weather.city
-                        temperature = "${weather.temperature}°C"
-                        description = weather.description
-                        icon = weather.icon
-                        prefs.edit()
-                            .putString("city", weather.city)
-                            .putString("temperature", "${weather.temperature}°C")
-                            .putString("description", weather.description)
-                            .putString("icon", weather.icon)
-                            .putLong("updated_at", System.currentTimeMillis())
-                            .apply()
-                        NeonClockWeatherWidgetProvider.updateAll(context)
-                        status = "Clima atualizado. A localização não fica sendo rastreada em segundo plano."
-                    } catch (_: Exception) {
-                        status = "Não foi possível consultar o clima. Confira sua conexão com a internet."
-                    } finally {
-                        loading = false
-                    }
-                }
-            }
+    suspend fun loadWeather(label: String, latitude: Double, longitude: Double) {
+        val now = withContext(Dispatchers.IO) { Weather.fetchNow(latitude, longitude) }
+        if (now == null) {
+            status = "Não foi possível consultar o clima. Verifique a internet e tente novamente."
+            return
         }
+        city = label
+        temperature = "${now.temp}°C"
+        description = WeatherArt.label(now.code)
+        prefs.edit()
+            .putString("city", label)
+            .putString("city_input", cityInput.trim())
+            .putString("latitude", latitude.toString())
+            .putString("longitude", longitude.toString())
+            .putString("temperature", temperature)
+            .putString("description", description)
+            .putInt("weather_code", now.code)
+            .putBoolean("is_day", now.day)
+            .putLong("updated_at", System.currentTimeMillis())
+            .apply()
+        NeonClockWeatherWidgetProvider.updateAll(context)
+        status = "Clima atualizado. O widget da tela inicial já pode ser adicionado."
     }
 
-    val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) { grants ->
-        if (grants.values.any { it }) updateFromLocation()
-        else status = "Permissão não concedida. Você pode autorizar quando quiser."
+    LaunchedEffect(Unit) {
+        val lat = prefs.getString("latitude", null)?.toDoubleOrNull()
+        val lon = prefs.getString("longitude", null)?.toDoubleOrNull()
+        if (lat != null && lon != null) {
+            val savedCity = prefs.getString("city", city)
+            if (!savedCity.isNullOrBlank()) city = savedCity
+            val now = withContext(Dispatchers.IO) { Weather.fetchNow(lat, lon) }
+            if (now != null) {
+                temperature = "${now.temp}°C"
+                description = WeatherArt.label(now.code)
+                prefs.edit().putString("temperature", temperature)
+                    .putString("description", description)
+                    .putInt("weather_code", now.code)
+                    .putBoolean("is_day", now.day).apply()
+                NeonClockWeatherWidgetProvider.updateAll(context)
+            }
+        }
     }
 
     Column(
         Modifier.fillMaxSize().padding(18.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Text("LOCALIZAÇÃO E CLIMA", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1E6FD9))
-        Text("Use a localização do próprio celular para mostrar o clima da região onde você está.", color = Color.Gray, fontSize = 13.sp)
+        Text("RELÓGIO E CLIMA", fontSize = 23.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1E6FD9))
+        Text(
+            "Escolha a cidade que aparecerá no widget neon. Não é necessário liberar localização do celular.",
+            color = Color.Gray,
+            fontSize = 13.sp
+        )
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF092C43))
+            shape = RoundedCornerShape(26.dp),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF08162F))
         ) {
             Column(
                 Modifier.fillMaxWidth().padding(22.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(7.dp)
             ) {
-                Text(icon, fontSize = 48.sp)
-                Text(temperature, fontSize = 42.sp, color = Color.White, fontWeight = FontWeight.Bold)
-                Text(description, color = Color.White, fontSize = 15.sp)
+                Text("◷", fontSize = 36.sp, color = Color(0xFF28E7F2))
+                Text(temperature, fontSize = 46.sp, color = Color.White, fontWeight = FontWeight.Bold)
+                Text(description, color = Color(0xFFD7F9FF), fontSize = 15.sp)
                 Text(city, color = Color(0xFF65E9E0), fontSize = 13.sp)
             }
         }
+        OutlinedTextField(
+            value = cityInput,
+            onValueChange = { cityInput = it },
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text("Cidade e estado") },
+            placeholder = { Text("Ex.: Rio de Janeiro, RJ") },
+            singleLine = true
+        )
         Button(
             onClick = {
-                val fine = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
-                val coarse = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
-                if (fine || coarse) updateFromLocation()
-                else permissionLauncher.launch(arrayOf(
-                    Manifest.permission.ACCESS_COARSE_LOCATION,
-                    Manifest.permission.ACCESS_FINE_LOCATION
-                ))
+                if (cityInput.isBlank()) {
+                    status = "Digite uma cidade antes de atualizar."
+                } else {
+                    scope.launch {
+                        loading = true
+                        status = "Localizando a cidade e consultando o clima..."
+                        try {
+                            val location = withContext(Dispatchers.IO) { Weather.geocode(cityInput) }
+                            if (location == null) {
+                                status = "Cidade não encontrada. Tente informar também o estado."
+                            } else {
+                                loadWeather(location.first, location.second, location.third)
+                            }
+                        } catch (_: Exception) {
+                            status = "Falha na consulta. Confira sua conexão e tente novamente."
+                        } finally {
+                            loading = false
+                        }
+                    }
+                }
             },
             enabled = !loading,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text(if (loading) "Atualizando..." else "Ativar / atualizar localização")
+            if (loading) {
+                CircularProgressIndicator()
+            } else {
+                Text("Salvar cidade e atualizar clima")
+            }
         }
         Text(status, color = Color.Gray, fontSize = 12.sp)
         Text(
-            "Privacidade: o Smart Care pede permissão enquanto você usa o aplicativo. Não precisa de localização permanente nem de GPS ligado o tempo todo. O clima é consultado pela internet usando coordenadas aproximadas/precisas conforme a permissão concedida.",
+            "Para colocar o relógio na tela inicial: mantenha pressionado um espaço vazio da tela, abra Widgets e escolha Smart Care – Relógio e clima. Depois, ajuste o tamanho se desejar.",
+            color = Color.Gray,
+            fontSize = 12.sp
+        )
+        Text(
+            "A previsão é fornecida pela Open-Meteo. A atualização automática do widget segue o intervalo permitido pelo Android.",
             color = Color.Gray,
             fontSize = 11.sp
         )
-    }
-}
-
-private fun requestCurrentLocation(context: Context, callback: (Location?) -> Unit) {
-    val manager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
-    val fine = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
-    val coarse = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
-    if (!fine && !coarse) {
-        callback(null)
-        return
-    }
-    val providers = manager.getProviders(true)
-    val provider = when {
-        fine && LocationManager.GPS_PROVIDER in providers -> LocationManager.GPS_PROVIDER
-        LocationManager.NETWORK_PROVIDER in providers -> LocationManager.NETWORK_PROVIDER
-        providers.isNotEmpty() -> providers.first()
-        else -> null
-    }
-    if (provider == null) {
-        callback(null)
-        return
-    }
-    try {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            manager.getCurrentLocation(provider, null, context.mainExecutor) { location ->
-                callback(location)
-            }
-        } else {
-            @Suppress("DEPRECATION")
-            manager.requestSingleUpdate(provider, object : LocationListener {
-                override fun onLocationChanged(location: Location) = callback(location)
-                @Deprecated("Deprecated in Android")
-                override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
-                override fun onProviderEnabled(provider: String) {}
-                override fun onProviderDisabled(provider: String) { callback(null) }
-            }, Looper.getMainLooper())
-        }
-    } catch (_: SecurityException) {
-        callback(null)
     }
 }
