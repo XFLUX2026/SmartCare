@@ -159,11 +159,11 @@ jobs:
                 val max = daily.getJSONArray("temperature_2m_max").getDouble(0).toInt()
                 val min = daily.getJSONArray("temperature_2m_min").getDouble(0).toInt()
                 val condition = when (code) {
-                    0 -> "Céu limpo"; 1, 2 -> "Parcialmente nublado"; 3 -> "Nublado"
-                    45, 48 -> "Neblina"; 51, 53, 55, 56, 57 -> "Garoa"
-                    61, 63, 65, 66, 67, 80, 81, 82 -> "Chuva"
-                    71, 73, 75, 77, 85, 86 -> "Neve"; 95, 96, 99 -> "Trovoadas"
-                    else -> "Condição variável"
+                    0 -> "☀️ Céu limpo"; 1 -> "🌤️ Predomínio de sol"; 2 -> "⛅ Parcialmente nublado"; 3 -> "☁️ Nublado"
+                    45, 48 -> "🌫️ Neblina"; 51, 53, 55, 56, 57 -> "🌦️ Garoa"
+                    61, 63, 65, 66, 67, 80, 81, 82 -> "🌧️ Chuva"
+                    71, 73, 75, 77, 85, 86 -> "🌨️ Neve"; 95, 96, 99 -> "⛈️ Trovoadas"
+                    else -> "🌤️ Condição variável"
                 }
                 save(app, "$condition • $temp°C • Máx. $max° / Mín. $min°")
             } catch (_: Exception) { save(app, "Sem atualização do clima. Verifique a internet.") }
@@ -221,28 +221,41 @@ jobs:
               override fun onDreamingStarted() { super.onDreamingStarted(); ClockWeatherManager.refresh(this) }
           }
           ''')
+          (base / "res/drawable/neon_weather_circle.xml").write_text(r'''<?xml version="1.0" encoding="utf-8"?>
+          <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+           <item><shape android:shape="oval"><solid android:color="#07182D"/><stroke android:width="7dp" android:color="#B52CFF"/></shape></item>
+           <item android:left="5dp" android:top="5dp" android:right="5dp" android:bottom="5dp">
+            <shape android:shape="oval"><solid android:color="#09263D"/><stroke android:width="3dp" android:color="#18E8E0"/></shape>
+           </item>
+          </layer-list>
+          ''')
           (base / "res/layout/clock_weather_widget.xml").write_text(r'''<?xml version="1.0" encoding="utf-8"?>
-          <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-           android:layout_width="match_parent" android:layout_height="match_parent"
-           android:orientation="vertical" android:gravity="center" android:padding="12dp"
-           android:background="@android:color/transparent">
-           <TextClock android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:format12Hour="h:mm" android:format24Hour="HH:mm" android:textColor="#FFFFFFFF"
-            android:textSize="52sp" android:gravity="center" android:shadowColor="#CC000000" android:shadowRadius="8"/>
-           <TextClock android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:format12Hour="EEEE, d 'de' MMMM" android:format24Hour="EEEE, d 'de' MMMM"
-            android:textColor="#FFFFFFFF" android:textSize="14sp" android:gravity="center"/>
-           <TextView android:id="@+id/clock_weather_summary" android:layout_width="match_parent"
-            android:layout_height="wrap_content" android:text="Ative a localização no Smart Care para ver o clima"
-            android:textColor="#FFFFFFFF" android:textSize="14sp" android:gravity="center" android:paddingTop="8dp"
-            android:shadowColor="#CC000000" android:shadowRadius="6"/>
-          </LinearLayout>
+          <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+           android:layout_width="match_parent" android:layout_height="match_parent" android:padding="3dp">
+           <LinearLayout android:layout_width="250dp" android:layout_height="250dp" android:layout_gravity="center"
+            android:orientation="vertical" android:gravity="center" android:padding="20dp"
+            android:background="@drawable/neon_weather_circle">
+            <TextClock android:layout_width="match_parent" android:layout_height="wrap_content"
+             android:format12Hour="h:mm" android:format24Hour="HH:mm" android:textColor="#FFFFFFFF"
+             android:textSize="44sp" android:textStyle="bold" android:gravity="center"
+             android:shadowColor="#FF00DFFF" android:shadowRadius="12"/>
+            <TextClock android:layout_width="match_parent" android:layout_height="wrap_content"
+             android:format12Hour="EEEE, d 'de' MMMM" android:format24Hour="EEEE, d 'de' MMMM"
+             android:textColor="#FFBDEFF5" android:textSize="12sp" android:gravity="center"/>
+            <TextView android:id="@+id/clock_weather_summary" android:layout_width="match_parent"
+             android:layout_height="wrap_content" android:text="Ative a localização no Smart Care para ver o clima"
+             android:textColor="#FFFFFFFF" android:textSize="15sp" android:textStyle="bold"
+             android:gravity="center" android:paddingTop="15dp" android:maxLines="3"
+             android:shadowColor="#FF00DFFF" android:shadowRadius="8"/>
+           </LinearLayout>
+          </FrameLayout>
           ''')
           (base / "res/xml/clock_weather_widget_info.xml").write_text(r'''<?xml version="1.0" encoding="utf-8"?>
           <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
            android:description="@string/clock_weather_widget_description" android:initialLayout="@layout/clock_weather_widget"
-           android:minWidth="180dp" android:minHeight="110dp" android:resizeMode="horizontal|vertical"
-           android:updatePeriodMillis="1800000" android:widgetCategory="home_screen|keyguard"/>
+           android:minWidth="250dp" android:minHeight="250dp" android:targetCellWidth="4" android:targetCellHeight="4"
+           android:resizeMode="horizontal|vertical" android:updatePeriodMillis="1800000"
+           android:widgetCategory="home_screen"/>
           ''')
           (base / "res/values/clock_weather_strings.xml").write_text(r'''<?xml version="1.0" encoding="utf-8"?>
           <resources><string name="clock_weather_widget_description">Relógio transparente com data e clima</string><string name="smartcare_dream_label">Relógio e clima Smart Care</string></resources>
