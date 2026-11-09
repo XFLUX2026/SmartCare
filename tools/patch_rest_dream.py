@@ -262,73 +262,16 @@ if 'android:name=".RestDream"' not in ms:
     ms = ms.replace('</application>', declaration + '    </application>')
 manifest.write_text(ms, encoding="utf-8")
 
-main = java / "MainActivity.kt"
-if not main.exists():
-    raise SystemExit("MainActivity.kt não encontrado no projeto extraído.")
-src = main.read_text(encoding="utf-8")
-if 'fun RestDreamSettingsPanel()' not in src:
-    panel = r'''
-@Composable
-fun RestDreamSettingsPanel() {
-    val context = LocalContext.current
-    var city by remember { mutableStateOf(Weather.city(context)) }
-    var status by remember { mutableStateOf(Weather.summary(context).ifBlank { "Informe uma cidade para exibir o clima." }) }
-    Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text("TELA DE DESCANSO", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = BlueMid)
-        Text("Relógio estilo Motorola com data, clima da cidade escolhida e anel néon segmentado que acompanha a bateria.", color = Color.Gray)
-        androidx.compose.material3.OutlinedTextField(
-            value = city, onValueChange = { city = it },
-            label = { Text("Cidade para o clima") },
-            placeholder = { Text("Ex.: Rio de Janeiro") },
-            singleLine = true, modifier = Modifier.fillMaxWidth()
-        )
-        Button(
-            onClick = {
-                status = "Buscando a cidade e consultando o clima..."
-                val requested = city
-                kotlin.concurrent.thread {
-                    val result = Weather.configureCity(context.applicationContext, requested)
-                    android.os.Handler(android.os.Looper.getMainLooper()).post { status = result }
-                }
-            },
-            modifier = Modifier.fillMaxWidth()
-        ) { Text("Salvar cidade e atualizar clima") }
-        Text(status, color = Color.Gray)
-        Button(
-            onClick = {
-                try {
-                    context.startActivity(android.content.Intent(android.provider.Settings.ACTION_DREAM_SETTINGS))
-                } catch (_: Exception) {
-                    context.startActivity(android.content.Intent(android.provider.Settings.ACTION_DISPLAY_SETTINGS))
-                }
-            },
-            modifier = Modifier.fillMaxWidth()
-        ) { Text("Ativar tela de descanso nas configurações") }
-        Text("Nas configurações do Android, escolha “Smart Care - tela de descanso”. O caminho e o nome do menu podem variar conforme o aparelho.", color = Color.Gray, fontSize = 12.sp)
-        Text("Sem cidade salva ou sem internet, o clima fica oculto. A bateria é atualizada por eventos do Android, sem consulta periódica.", color = Color.Gray, fontSize = 12.sp)
-    }
-}
-'''
-    marker = re.search(r'(?m)^@Composable\s*\n(?:private\s+)?fun\s+Placeholder', src)
-    if marker:
-        src = src[:marker.start()] + panel + '\n' + src[marker.start():]
-    else:
-        src = src.rstrip() + '\n\n' + panel + '\n'
-
-if '6 -> RestDreamSettingsPanel()' not in src:
-    route = re.search(r'(?m)^(\s*)else\s*->\s*Placeholder', src)
-    if route:
-        indent = route.group(1)
-        src = src[:route.start()] + indent + '6 -> RestDreamSettingsPanel()\n' + src[route.start():]
-    else:
-        print("Linhas de navegação encontradas em MainActivity.kt:")
-        for number, line in enumerate(src.splitlines(), 1):
-            if number <= 240:
-                print(f"{number}: {line[:260]}")
-        raise SystemExit("Não encontrei a estrutura de navegação para ligar o painel.")
-main.write_text(src, encoding="utf-8")
-print("Módulo RestDream, Canvas, bateria por BroadcastReceiver, clima por cidade e configurações aplicados.")
+screen_files = list((base / "java").rglob("*.kt"))
+settings_matches = []
+for path in screen_files:
+    source = path.read_text(encoding="utf-8")
+    match = re.search(r'\bfun\s+SettingsScreen\s*\(', source)
+    if match:
+        settings_matches.append((path, source, match.start()))
+if not settings_matches:
+    raise SystemExit("Não encontrei a função SettingsScreen no projeto extraído.")
+for path, source, pos in settings_matches:
+    print("SETTINGS_FILE:", path)
+    print(source[max(0, pos - 1000):pos + 9000])
+print("Localizei SettingsScreen; a próxima etapa vai substituir somente essa tela.")
