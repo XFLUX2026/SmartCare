@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+
     <!-- Nenhuma permissao necessaria na Etapa 1 -->
 
     <application
@@ -9,6 +13,17 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:label="SMART CARE"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
+        <receiver
+            android:name=".NeonClockWeatherWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/neon_clock_weather_widget_info" />
+        </receiver>
+
         <receiver
             android:name=".HomeCareWidgetProvider"
             android:exported="true">
