@@ -80,6 +80,9 @@ jobs:
               raise SystemExit("Arquivos obrigatórios ausentes: " + ", ".join(missing))
           PY
 
+      - name: Instalar conversor dos ícones Meteocons
+        run: python3 -m pip install --disable-pip-version-check cairosvg
+
       - name: Corrigir erros de compilação encontrados
         shell: bash
         run: |
@@ -118,6 +121,37 @@ jobs:
           # Widget transparente de relógio/clima e protetor de tela.
           from pathlib import Path
           base = Path("app/src/main")
+          # Ícones Meteocons Fill oficiais: SVG original convertido para PNG Android.
+          import urllib.request
+          import cairosvg
+          drawable = base / "res/drawable-nodpi"
+          drawable.mkdir(parents=True, exist_ok=True)
+          meteocons = {
+              "w_clear_day": "clear-day",
+              "w_clear_night": "clear-night",
+              "w_partly_cloudy_day": "partly-cloudy-day",
+              "w_partly_cloudy_night": "partly-cloudy-night",
+              "w_cloudy": "cloudy",
+              "w_fog": "fog",
+              "w_drizzle": "drizzle",
+              "w_rain": "rain",
+              "w_thunderstorms": "thunderstorms",
+              "w_snow": "snow",
+          }
+          for resource_name, icon_name in meteocons.items():
+              asset_url = f"https://cdn.jsdelivr.net/gh/basmilius/weather-icons@2.0.0/production/fill/all/{icon_name}.svg"
+              request = urllib.request.Request(asset_url, headers={"User-Agent": "SmartCare-Android/1.0"})
+              with urllib.request.urlopen(request, timeout=40) as response:
+                  svg_data = response.read()
+              cairosvg.svg2png(bytestring=svg_data, write_to=str(drawable / f"{resource_name}.png"),
+                               output_width=512, output_height=512)
+          assets = base / "assets"
+          assets.mkdir(parents=True, exist_ok=True)
+          license_url = "https://cdn.jsdelivr.net/gh/basmilius/weather-icons@2.0.0/LICENSE"
+          request = urllib.request.Request(license_url, headers={"User-Agent": "SmartCare-Android/1.0"})
+          with urllib.request.urlopen(request, timeout=40) as response:
+              (assets / "METEOCONS_LICENSE.txt").write_bytes(response.read())
+          print("Ícones Meteocons Fill baixados e convertidos:", ", ".join(meteocons))
           java = base / "java/com/smartcare/app"
           (java / "ClockWeatherManager.kt").write_text(r'''package com.smartcare.app
 
@@ -137,40 +171,67 @@ jobs:
               private const val PREFS = "clock_weather"
               fun summary(context: Context) = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
                   .getString("summary", "Ative a localização no Smart Care para ver o clima") ?: "Clima indisponível"
+
               fun refresh(context: Context) {
                   val app = context.applicationContext
                   Thread {
-            try {
-                val fine = ContextCompat.checkSelfPermission(app, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
-                val coarse = ContextCompat.checkSelfPermission(app, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
-                if (!fine && !coarse) { save(app, "Ative a localização no Smart Care para ver o clima"); return@Thread }
-                val lm = app.getSystemService(Context.LOCATION_SERVICE) as LocationManager
-                val loc: Location? = lm.getProviders(true).mapNotNull { provider ->
-                    try { lm.getLastKnownLocation(provider) } catch (_: SecurityException) { null }
-                }.maxByOrNull { it.time }
-                if (loc == null) { save(app, "Aguardando GPS. Ative a localização e tente novamente."); return@Thread }
-                val url = URL("https://api.open-meteo.com/v1/forecast?latitude=" + loc.latitude + "&longitude=" + loc.longitude + "&current=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min&timezone=auto")
-                val conn = url.openConnection() as HttpURLConnection
-                conn.connectTimeout = 10000; conn.readTimeout = 10000
-                val json = JSONObject(conn.inputStream.bufferedReader().use { it.readText() }); conn.disconnect()
-                val current = json.getJSONObject("current"); val daily = json.getJSONObject("daily")
-                val temp = current.getDouble("temperature_2m").toInt()
-                val code = current.getInt("weather_code")
-                val max = daily.getJSONArray("temperature_2m_max").getDouble(0).toInt()
-                val min = daily.getJSONArray("temperature_2m_min").getDouble(0).toInt()
-                val condition = when (code) {
-                    0 -> "☀️ Céu limpo"; 1 -> "🌤️ Predomínio de sol"; 2 -> "⛅ Parcialmente nublado"; 3 -> "☁️ Nublado"
-                    45, 48 -> "🌫️ Neblina"; 51, 53, 55, 56, 57 -> "🌦️ Garoa"
-                    61, 63, 65, 66, 67, 80, 81, 82 -> "🌧️ Chuva"
-                    71, 73, 75, 77, 85, 86 -> "🌨️ Neve"; 95, 96, 99 -> "⛈️ Trovoadas"
-                    else -> "🌤️ Condição variável"
-                }
-                save(app, "$condition • $temp°C • Máx. $max° / Mín. $min°")
-            } catch (_: Exception) { save(app, "Sem atualização do clima. Verifique a internet.") }
+                      try {
+                          val fine = ContextCompat.checkSelfPermission(app, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                          val coarse = ContextCompat.checkSelfPermission(app, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                          if (!fine && !coarse) { save(app, "Ative a localização no Smart Care para ver o clima", "w_partly_cloudy_day"); return@Thread }
+                          val lm = app.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+                          val loc: Location? = lm.getProviders(true).mapNotNull { provider ->
+                              try { lm.getLastKnownLocation(provider) } catch (_: SecurityException) { null }
+                          }.maxByOrNull { it.time }
+                          if (loc == null) { save(app, "Aguardando localização. Abra o Smart Care e atualize.", "w_partly_cloudy_day"); return@Thread }
+                          val url = URL("https://api.open-meteo.com/v1/forecast?latitude=" + loc.latitude + "&longitude=" + loc.longitude + "&current=temperature_2m,weather_code,is_day&daily=temperature_2m_max,temperature_2m_min&timezone=auto")
+                          val conn = url.openConnection() as HttpURLConnection
+                          conn.connectTimeout = 10000
+                          conn.readTimeout = 10000
+                          val json = JSONObject(conn.inputStream.bufferedReader().use { it.readText() })
+                          conn.disconnect()
+                          val current = json.getJSONObject("current")
+                          val daily = json.getJSONObject("daily")
+                          val temp = current.getDouble("temperature_2m").toInt()
+                          val code = current.getInt("weather_code")
+                          val isDay = current.optInt("is_day", 1) == 1
+                          val max = daily.getJSONArray("temperature_2m_max").getDouble(0).toInt()
+                          val min = daily.getJSONArray("temperature_2m_min").getDouble(0).toInt()
+                          val icon = when (code) {
+                              0 -> if (isDay) "w_clear_day" else "w_clear_night"
+                              1, 2 -> if (isDay) "w_partly_cloudy_day" else "w_partly_cloudy_night"
+                              3 -> "w_cloudy"
+                              45, 48 -> "w_fog"
+                              in 51..57 -> "w_drizzle"
+                              in 61..67, in 80..82 -> "w_rain"
+                              in 71..77, in 85..86 -> "w_snow"
+                              in 95..99 -> "w_thunderstorms"
+                              else -> if (isDay) "w_partly_cloudy_day" else "w_partly_cloudy_night"
+                          }
+                          val condition = when (code) {
+                              0 -> if (isDay) "Céu limpo" else "Céu limpo à noite"
+                              1 -> "Predomínio de céu limpo"
+                              2 -> "Parcialmente nublado"
+                              3 -> "Nublado"
+                              45, 48 -> "Neblina"
+                              in 51..57 -> "Garoa"
+                              in 61..67, in 80..82 -> "Chuva"
+                              in 71..77, in 85..86 -> "Neve"
+                              in 95..99 -> "Trovoadas"
+                              else -> "Condição variável"
+                          }
+                          save(app, "$condition • $temp°C • Máx. $max° / Mín. $min°", icon)
+                      } catch (_: Exception) {
+                          save(app, "Sem atualização do clima. Verifique a internet.", "w_partly_cloudy_day")
+                      }
                   }.start()
               }
-              private fun save(context: Context, value: String) {
-                  context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString("summary", value).apply()
+
+              private fun save(context: Context, value: String, icon: String) {
+                  context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+                      .putString("summary", value)
+                      .putString("icon", icon)
+                      .apply()
                   val manager = AppWidgetManager.getInstance(context)
                   val ids = manager.getAppWidgetIds(ComponentName(context, ClockWeatherWidgetProvider::class.java))
                   if (ids.isNotEmpty()) ClockWeatherWidgetProvider.update(context, manager, ids)
@@ -182,17 +243,24 @@ jobs:
           import android.appwidget.AppWidgetProvider
           import android.content.Context
           import android.widget.RemoteViews
+
           class ClockWeatherWidgetProvider : AppWidgetProvider() {
               override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) {
-                  update(context, manager, ids); ClockWeatherManager.refresh(context)
+                  update(context, manager, ids)
+                  ClockWeatherManager.refresh(context)
               }
+
               companion object {
                   fun update(context: Context, manager: AppWidgetManager, ids: IntArray) {
-            ids.forEach { id ->
-                val views = RemoteViews(context.packageName, R.layout.clock_weather_widget)
-                views.setTextViewText(R.id.clock_weather_summary, ClockWeatherManager.summary(context))
-                manager.updateAppWidget(id, views)
-            }
+                      val prefs = context.getSharedPreferences("clock_weather", Context.MODE_PRIVATE)
+                      val iconName = prefs.getString("icon", "w_partly_cloudy_day") ?: "w_partly_cloudy_day"
+                      val iconId = context.resources.getIdentifier(iconName, "drawable", context.packageName)
+                      ids.forEach { id ->
+                          val views = RemoteViews(context.packageName, R.layout.clock_weather_widget)
+                          views.setTextViewText(R.id.clock_weather_summary, ClockWeatherManager.summary(context))
+                          if (iconId != 0) views.setImageViewResource(R.id.clock_weather_icon, iconId)
+                          manager.updateAppWidget(id, views)
+                      }
                   }
               }
           }
@@ -233,20 +301,22 @@ jobs:
           <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
            android:layout_width="match_parent" android:layout_height="match_parent" android:padding="3dp">
            <LinearLayout android:layout_width="250dp" android:layout_height="250dp" android:layout_gravity="center"
-            android:orientation="vertical" android:gravity="center" android:padding="20dp"
+            android:orientation="vertical" android:gravity="center" android:padding="17dp"
             android:background="@drawable/neon_weather_circle">
             <TextClock android:layout_width="match_parent" android:layout_height="wrap_content"
              android:format12Hour="h:mm" android:format24Hour="HH:mm" android:textColor="#FFFFFFFF"
-             android:textSize="44sp" android:textStyle="bold" android:gravity="center"
+             android:textSize="42sp" android:textStyle="bold" android:gravity="center"
              android:shadowColor="#FF00DFFF" android:shadowRadius="12"/>
             <TextClock android:layout_width="match_parent" android:layout_height="wrap_content"
              android:format12Hour="EEEE, d 'de' MMMM" android:format24Hour="EEEE, d 'de' MMMM"
              android:textColor="#FFBDEFF5" android:textSize="12sp" android:gravity="center"/>
+            <ImageView android:id="@+id/clock_weather_icon" android:layout_width="96dp"
+             android:layout_height="96dp" android:layout_marginTop="5dp" android:scaleType="fitCenter"
+             android:contentDescription="Condição atual do tempo"/>
             <TextView android:id="@+id/clock_weather_summary" android:layout_width="match_parent"
              android:layout_height="wrap_content" android:text="Ative a localização no Smart Care para ver o clima"
-             android:textColor="#FFFFFFFF" android:textSize="15sp" android:textStyle="bold"
-             android:gravity="center" android:paddingTop="15dp" android:maxLines="3"
-             android:shadowColor="#FF00DFFF" android:shadowRadius="8"/>
+             android:textColor="#FFFFFFFF" android:textSize="13sp" android:textStyle="bold"
+             android:gravity="center" android:paddingTop="3dp" android:maxLines="2"/>
            </LinearLayout>
           </FrameLayout>
           ''')
@@ -447,6 +517,15 @@ jobs:
 
       - name: Compilar APK de instalação
         run: gradle --no-daemon --stacktrace :app:assembleDebug
+
+      - name: Empacotar ícones Meteocons para download
+        uses: actions/upload-artifact@v4
+        with:
+          name: Meteocons-Android-PNGs
+          path: |
+            app/src/main/res/drawable-nodpi/w_*.png
+            app/src/main/assets/METEOCONS_LICENSE.txt
+          if-no-files-found: error
 
       - name: Publicar APK
         uses: actions/upload-artifact@v4
