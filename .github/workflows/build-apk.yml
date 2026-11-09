@@ -265,6 +265,65 @@ class SmartCareDreamService : DreamService() {
           gradle = Path("app/build.gradle.kts")
           gs = gradle.read_text().replace("versionCode = 2", "versionCode = 3").replace('versionName = "0.2"', 'versionName = "0.3"')
           gradle.write_text(gs)
+          # Tela de configuração para conceder localização e atualizar o clima.
+          main = java / "MainActivity.kt"
+          src = main.read_text()
+          src = src.replace('"Arquivos" to "📁"\n        )', '"Arquivos" to "📁",\n            "Relógio e clima" to "🕒"\n        )')
+          src = src.replace('                    5 -> StoragePanel(snap.storage) { snap = Metrics.read(ctx) }\n                    else -> Placeholder', '                    5 -> StoragePanel(snap.storage) { snap = Metrics.read(ctx) }\n                    6 -> ClockWeatherPanel()\n                    else -> Placeholder')
+          src = src.replace('class MainActivity : ComponentActivity() {\n    override fun onCreate', '''class MainActivity : ComponentActivity() {
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == 901 && grantResults.any { it == android.content.pm.PackageManager.PERMISSION_GRANTED }) {
+            ClockWeatherManager.refresh(this)
+        }
+    }
+    override fun onCreate''')
+          panel = '''
+          @Composable
+          fun ClockWeatherPanel() {
+              val context = LocalContext.current
+              var status by remember { mutableStateOf(ClockWeatherManager.summary(context)) }
+              LaunchedEffect(Unit) {
+                  while (true) {
+                      status = ClockWeatherManager.summary(context)
+                      delay(3000)
+                  }
+              }
+              Column(
+                  Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
+                  verticalArrangement = Arrangement.spacedBy(14.dp),
+                  horizontalAlignment = Alignment.CenterHorizontally
+              ) {
+                  Text("RELÓGIO E CLIMA", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = BlueMid)
+                  Text("Widget transparente no estilo de relógio Motorola, com hora, data, temperatura e previsão do dia.", color = Color.Gray)
+                  CardBox {
+                      Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                          Text("12:45", fontSize = 48.sp, fontWeight = FontWeight.Light, color = BlueMid)
+                          Text(status, fontSize = 14.sp, color = Color.DarkGray)
+                      }
+                  }
+                  Button(onClick = {
+                      val activity = context as? ComponentActivity
+                      val fine = android.Manifest.permission.ACCESS_FINE_LOCATION
+                      val coarse = android.Manifest.permission.ACCESS_COARSE_LOCATION
+                      if (activity != null && activity.checkSelfPermission(fine) != android.content.pm.PackageManager.PERMISSION_GRANTED &&
+                          activity.checkSelfPermission(coarse) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                          activity.requestPermissions(arrayOf(fine, coarse), 901)
+                      } else {
+                          ClockWeatherManager.refresh(context)
+                      }
+                  }, modifier = Modifier.fillMaxWidth()) { Text("Ativar localização e atualizar clima") }
+                  Text("Depois, adicione o widget Relógio e clima Smart Care à tela inicial: mantenha o dedo pressionado em uma área vazia, abra Widgets e escolha Smart Care.", color = Color.Gray, fontSize = 12.sp)
+                  Text("Para ativar a tela de descanso, abra Configurações do Android > Tela > Protetor de tela (ou Tela de descanso) e selecione Relógio e clima Smart Care. O nome do menu varia conforme o fabricante.", color = Color.Gray, fontSize = 12.sp)
+                  Text("O clima usa sua localização aproximada ou precisa somente após sua autorização e consulta a previsão pela internet.", color = Color.Gray, fontSize = 12.sp)
+              }
+          }
+
+          '''
+          if 'fun ClockWeatherPanel()' not in src:
+              src = src.replace('@Composable\nfun Placeholder(name: String)', panel + '@Composable\nfun Placeholder(name: String)')
+          main.write_text(src)
+
           print("Relógio transparente, clima e protetor de tela adicionados.")
 
           print("Correções aplicadas aos três arquivos.")
